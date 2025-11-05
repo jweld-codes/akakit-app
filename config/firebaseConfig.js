@@ -10,12 +10,12 @@ import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyD9GKif66MyOo263aNNc-EFOlgxjZl6_B0",
+  apiKey: "",
   authDomain: "akakitapp.firebaseapp.com",
-  projectId: "akakitapp",
+  projectId: "",
   storageBucket: "akakitapp.firebasestorage.app",
-  messagingSenderId: "573915777369",
-  appId: "1:573915777369:web:58a9db8b253ddeac36a448"
+  messagingSenderId: "",
+  appId: ""
 };
 
 // Initialize Firebase
