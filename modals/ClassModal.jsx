@@ -41,9 +41,9 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
   const [classToEdit, setClassToEdit] = useState(null);
   const [docenteToEdit, setDocenteToEdit] = useState(null);
   
-  const { tasksValueMetadata, refreshData: refreshOverviewData } = useOverviewData();
+  const {calculateTasksValueMetadata, tasksValueMetadata, refreshData: refreshOverviewData } = useOverviewData();
   const promedioClase = tasksValueMetadata.promedios_por_clase[classIdModal] ?? 0;
-
+  const sumaTareasParcial = tasksValueMetadata.suma_tarea_parcial ?? 0;
 
   const fetchClassData = useCallback(async (showLoadingIndicator = true) => {
     if (!visible || !classIdModal) return;
@@ -81,6 +81,7 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
       setRefreshing(false);
     }
   }, [visible, classIdModal]);
+
 
   useEffect(() => {
     fetchClassData();
@@ -233,7 +234,7 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
         return <InformacionTab claseData={claseData} color={color} docenteData={docenteData} promedioClase={promedioClase} />;
       
       case 'general':
-        return <GeneralTab claseData={claseData} cursoData={cursoData} promedioClase={promedioClase} />;
+        return <GeneralTab claseData={claseData} cursoData={cursoData} taskData={taskData}  promedioClase={promedioClase} />;
       
       case 'tareas':
         return <TareasTab claseData={claseData} color={color} taskData={taskData} onTaskUpdate={handleTaskUpdate} />;
@@ -274,7 +275,7 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
             </TouchableOpacity>
 
             <Text style={[styles.modalTitle, { top: 70, fontSize: 30, color:textColor }]}>
-              {loading ? 'Cargando...' : claseData?.class_name || 'Clase'}
+              {loading ? 'Cargando...' : claseData?.class_name || 'Sin Valor'}
             </Text>
             <Image 
               source={backgroundImage} 
@@ -486,7 +487,7 @@ const InformacionTab = ({ claseData, color, docenteData, promedioClase  }) => (
 );
 
 // Tab: General
-const GeneralTab = ({ claseData, cursoData, promedioClase }) => {
+const GeneralTab = ({ claseData, cursoData, taskData, promedioClase }) => {
   const fechaInicio = cursoData?.curso_fecha_inicio
     ? new Date(cursoData.curso_fecha_inicio.seconds * 1000).toLocaleDateString()
     : "No disponible";
@@ -495,34 +496,103 @@ const GeneralTab = ({ claseData, cursoData, promedioClase }) => {
     ? new Date(cursoData.curso_fecha_final.seconds * 1000).toLocaleDateString()
     : "No disponible";
 
-    const { tasksValueMetadata } = useOverviewData();
-    const promedioGeneral = tasksValueMetadata.promedio_general;
+  const calcularNotasPorParcial = () => {
+    if (!taskData || taskData.length === 0) {
+      return {
+        bloque_1: '0.00',
+        bloque_2: '0.00',
+        nota_final: '0.00',
+        parcial_1: '0.00',
+        parcial_2: '0.00',
+        parcial_3: '0.00',
+        parcial_4: '0.00'
+      };
+    }
 
-    return(
-      <View>
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Curso</Text>
-          <InfoRow label="Año" value={cursoData.curso_anio} />
-          <InfoRow label="Periodo" value={cursoData.curso_periodo} />
-          <InfoRow label="Fecha de Inicio" value={fechaInicio} />
-          <InfoRow label="Fecha Final" value={fechaFin} />
+    const notasPorParcial = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0
+    };
+
+    taskData.forEach(task => {
+      const parcial = parseInt(task.tarea_parcial);
+      const valorFinal = parseFloat(task.tarea_valor_final);
+
+      if (parcial >= 1 && parcial <= 4 && !isNaN(valorFinal)) {
+        notasPorParcial[parcial] += valorFinal;
+      }
+    });
+
+    const bloque_1 = (notasPorParcial[1] + notasPorParcial[2]).toFixed(2);
+    const bloque_2 = (notasPorParcial[3] + notasPorParcial[4]).toFixed(2);
+    const nota_final = (parseFloat(bloque_1) + parseFloat(bloque_2)).toFixed(2);
+
+    return {
+      bloque_1,
+      bloque_2,
+      nota_final,
+      parcial_1: notasPorParcial[1].toFixed(2),
+      parcial_2: notasPorParcial[2].toFixed(2),
+      parcial_3: notasPorParcial[3].toFixed(2),
+      parcial_4: notasPorParcial[4].toFixed(2)
+    };
+  };
+
+  const notas = calcularNotasPorParcial();
+
+  return(
+    <View>
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Curso</Text>
+        <InfoRow label="Año" value={cursoData?.curso_anio || 'N/A'} />
+        <InfoRow label="Periodo" value={cursoData?.curso_periodo || 'N/A'} />
+        <InfoRow label="Fecha de Inicio" value={fechaInicio} />
+        <InfoRow label="Fecha Final" value={fechaFin} />
+      </View>
+
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Notas por Parcial</Text>
+        <InfoRow 
+          label="Parcial I (Acumulativo) " 
+          value={`${notas.parcial_1}/20`} 
+        />
+        <InfoRow 
+          label="Parcial II (Examen)" 
+          value={`${notas.parcial_2}/30`} 
+        />
+        <InfoRow 
+          label="Parcial III (Acumulativo)" 
+          value={`${notas.parcial_3}/20`} 
+        />
+        <InfoRow 
+          label="Parcial IV (Examen)" 
+          value={`${notas.parcial_4}/30`} 
+        />
+      </View>
+
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Resumen de Notas</Text>
+        <InfoRow 
+          label="Bloque 1 (Parcial I + II)" 
+          value={`${notas.bloque_1}/50`} 
+        />
+        <InfoRow 
+          label="Bloque 2 (Parcial III + IV)" 
+          value={`${notas.bloque_2}/50`} 
+        />
+        <View style={[styles.infoRow, { borderBottomWidth: 0, paddingTop: 15, borderTopWidth: 2, borderTopColor: '#e0e0e0' }]}>
+          <Text style={[styles.infoLabel, { fontFamily: 'poppins-semibold', fontSize: 16 }]}>
+            Nota Final:
+          </Text>
+          <Text style={[styles.infoValue, { fontFamily: 'poppins-bold', fontSize: 18, color: '#470427ff' }]}>
+            {notas.nota_final}/100
+          </Text>
         </View>
-
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Promedios</Text>
-          <InfoRow 
-            label="Promedio General" 
-            value={parseFloat(promedioGeneral).toFixed(2)} 
-          />
-          <InfoRow 
-            label="Promedio de Clase" 
-            value={promedioClase ? `${parseFloat(promedioClase.promedio).toFixed(2)}%` : 'Sin datos'} 
-          />
-
-        </View>
+      </View>
     </View>
-    );
-  
+  );
 };
 
 // Tab: Tareas

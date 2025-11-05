@@ -40,6 +40,12 @@ export const OverviewDataProvider = ({ children }) => {
     porcentaje_completado: '0.00',
     promedios_por_periodo: {},
     promedios_por_clase: {},
+    sumas_tareas_parcial: {},
+    bloques: {
+      bloque_1: '0.00',
+      bloque_2: '0.00',
+      nota_final: '0.00'
+    }
   });
 
   // Estados para Classes
@@ -106,8 +112,6 @@ export const OverviewDataProvider = ({ children }) => {
           setLastUpdate(parsed);
         }
       }
-
-      //console.log(hasCache ? 'Cache cargado' : 'No hay cache disponible');
       return { hasCache };
     } catch (error) {
       console.error('Error loading from cache:', error);
@@ -142,6 +146,12 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
       porcentaje_completado: '0.00',
       promedios_por_periodo: {},
       promedios_por_clase: {},
+      sumas_tareas_completadas: {},
+      bloques: {
+        bloque_1: '0.00',
+        bloque_2: '0.00',
+        nota_final: '0.00'
+      }
     };
   }
 
@@ -172,6 +182,31 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
 
   //console.log('Mapa completo de clases:', clasesMap);
 
+  // Crear un mapa de tareas para búsqueda rápida
+  const taskMap = {};
+  if (Array.isArray(taskList)) {
+    //console.log('Total de tareas existentes:', taskList.length);
+    
+    taskList.forEach((task, index) => {
+      const possibleIds = [
+        task.tarea_id,
+        task.idTarea,
+      ];
+
+      const taskTitle = task.tareaName || task.tarea_titulo || task.titulo || `Tarea ${index + 1}`;
+      const taskParcial = task.tareaParcial || task.tarea_parcial || task.parcial || `Tarea ${index + 1}`;
+      possibleIds.forEach(id => {
+        if (id !== undefined && id !== null) {
+          taskMap[id] = taskTitle;
+          taskMap[String(id)] = taskTitle;
+          taskMap[Number(id)] = taskTitle;
+        }
+      });
+
+      //console.log(`Tarea ${index}: ID=${task.tarea_id}, Nombre=${taskTitle}, Parcial=${taskParcial}`);
+    });
+  }
+
   const tareas_con_valor_inicial = taskList.filter(
     task => task.tarea_valor > 0
   ).length;
@@ -201,7 +236,67 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
     : 0;
 
   // ==========================================
+// SUMAS DE TAREAS POR PARCIAL
+// ==========================================
+const sumas_tareas_parcial = taskList.reduce((acc, task) => {
+  const parcial = parseFloat(task.tarea_parcial);
+  const valorFinal = parseFloat(task.tarea_valor_final);
+  const claseId = task.tarea_id_clase;
+
+  if (!acc[parcial]) {
+    acc[parcial] = {
+      tarea_parcial: parcial,
+      total_obtenido: 0,
+      total_posible: 0,
+      tareas_calificadas: 0,
+      tareas_totales: 0,
+    };
+  }
+
+  acc[parcial].tareas_totales += 1;
+  acc[parcial].total_posible += parseFloat(task.tarea_valor) || 0;
+
+  if (!isNaN(valorFinal)) {
+    acc[parcial].total_obtenido += valorFinal;
+    acc[parcial].tareas_calificadas += 1;
+  }
+
+  return acc;
+}, {});
+
+// ==========================================
+// CALCULAR PROMEDIOS POR PARCIAL
+// ==========================================
+Object.keys(sumas_tareas_parcial).forEach(parcial => {
+  const data = sumas_tareas_parcial[parcial];
+  data.valor_total = data.tareas_calificadas > 0
+    ? (data.total_obtenido).toFixed(2)
+    : '0.00';
+});
+
+// ==========================================
+// AGRUPAR POR BLOQUES (1+2) y (3+4)
+// ==========================================
+const bloque_1 = (
+  (parseFloat(sumas_tareas_parcial[1]?.valor_total || 0)) +
+  (parseFloat(sumas_tareas_parcial[2]?.valor_total || 0))
+).toFixed(2);
+
+const bloque_2 = (
+  (parseFloat(sumas_tareas_parcial[3]?.valor_total || 0)) +
+  (parseFloat(sumas_tareas_parcial[4]?.valor_total || 0))
+).toFixed(2);
+
+// ==========================================
+// NOTA FINAL DE LA CLASE
+// ==========================================
+  const nota_final = (
+    parseFloat(bloque_1) + parseFloat(bloque_2)
+  ).toFixed(2);
+
+  // ==========================================
   // PROMEDIOS POR PERIODO
+  // Cálculo de todas las tareas y exmanes juntos de las clases de dicho periodo
   // ==========================================
   const promedios_por_periodo = taskList.reduce((acc, task) => {
     const periodo = task.tarea_periodo || 'Sin periodo';
@@ -240,6 +335,7 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
 
   // ==========================================
   // PROMEDIOS POR CLASE
+  // Cálculo de todas las tareas y exmanes juntos de la clase
   // ==========================================
   const promedios_por_clase = taskList.reduce((acc, task) => {
     const claseId = task.tarea_id_clase || 'Sin clase';
@@ -255,7 +351,7 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
           c.id === claseId || 
           c.id === String(claseId) || 
           c.id === Number(claseId) ||
-          c.class_id === claseId ||
+          c.clase_id === claseId ||
           c.idClase === claseId
         );
         nombreEncontrado = claseEncontrada?.class_name || claseEncontrada?.className;
@@ -263,21 +359,22 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
 
       acc[claseId] = {
         clase_id: claseId,
-        clase_nombre: nombreEncontrado || `Clase ID: ${claseId}`,
+        class_name: nombreEncontrado || `Clase ID: ${claseId}`,
         total_obtenido: 0,
         total_posible: 0,
         tareas_calificadas: 0,
         tareas_totales: 0,
       };
 
-    // console.log(`Procesando clase ${claseId}: Nombre = ${acc[claseId].clase_nombre}`);
+    //console.log(`Procesando clase ${claseId}: Nombre = ${acc[claseId].clase_nombre}`);
     }
     
     acc[claseId].tareas_totales += 1;
+
     acc[claseId].total_posible += parseFloat(task.tarea_valor) || 0;
-    
     if (valorFinal !== undefined && valorFinal !== null && valorFinal >= 0) {
       acc[claseId].total_obtenido += valorFinal;
+
       acc[claseId].tareas_calificadas += 1;
     }
     
@@ -287,8 +384,9 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
   // Calcular promedios finales por clase
   Object.keys(promedios_por_clase).forEach(claseId => {
     const data = promedios_por_clase[claseId];
+
     data.promedio = data.tareas_calificadas > 0
-      ? (data.total_obtenido / data.tareas_calificadas).toFixed(2)
+      ? (data.total_obtenido + data.tareas_calificadas).toFixed(2)
       : '0.00';
     data.porcentaje = data.total_posible > 0
       ? ((data.total_obtenido / data.total_posible) * 100).toFixed(2)
@@ -305,6 +403,12 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
     porcentaje_completado: porcentaje_completado.toFixed(2),
     promedios_por_periodo,
     promedios_por_clase,
+    sumas_tareas_parcial,
+    bloques: {
+      bloque_1,
+      bloque_2,
+      nota_final
+    }
   };
 };
 
@@ -349,7 +453,7 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
     ]);
 
     setLastUpdate(timestamp);
-    console.log('Datos guardados en cache exitosamente');
+    //console.log('Datos guardados en cache exitosamente');
   } catch (error) {
     console.error('Error saving to cache:', error);
   }
@@ -498,6 +602,7 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
     promediosPorPeriodo: tasksValueMetadata.promedios_por_periodo,
     promediosPorClase: tasksValueMetadata.promedios_por_clase,
     valorObtenido: tasksValueMetadata.valor_total_obtenido,
+    sumaTareasParcial: tasksValueMetadata.sumas_tareas_parcial,
     
 
     // Classes data

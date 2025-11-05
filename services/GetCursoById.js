@@ -19,7 +19,7 @@ export const getCursoById = async(cursoId) => {
       //console.log("Curso encontrado:", data);
       return data;
     } else {
-      console.log("No se encontró ninguna clase con ese curso ID:", cursoId);
+      //console.log("No se encontró ninguna clase con ese curso ID:", cursoId);
       return null;
     }
   } catch (e) {

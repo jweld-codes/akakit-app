@@ -9,12 +9,10 @@ export default function ClassUpcomingCard({ clase, subtitle }) {
 
   return (
     <View style={container.container}>
-        <View style={container.cards_container}>
-        <View style={container.cards_grid}>
-
-            <View style={[cards.cardUpcomingClassCard, global.aside, {backgroundColor: '#2E7D32'}]}>
+        <View style={container.upcoming_class_cards_container}>
+        <View>
+            <View style={global.aside}>
               <View style={cards.cardUpcomingHeader}>
-                
                 <View style={[global.centerObjects, {marginRight: 20}]}>
                   <Image source={require('../../assets/images/icons/video_camera_white_icon.png')}
                   style={cards.cardheader_icons_size}
@@ -34,6 +32,9 @@ export default function ClassUpcomingCard({ clase, subtitle }) {
                         fontFamily:'poppins-bold',
                         fontSize: 20,
                         color: '#fff',
+                        flexShrink: 1,
+                        flexWrap: 'wrap',
+                        width: 250,
                     }} numberOfLines={5}>{clase.class_name}</Text>
                   <Text style={cards.card_subtitle}>{clase.class_days}</Text>
                   <Text style={cards.card_subtitle}>{clase.class_hours}</Text>
@@ -42,10 +43,10 @@ export default function ClassUpcomingCard({ clase, subtitle }) {
 
                 <TouchableOpacity onPress={() => Linking.openURL(clase.class_url_access)} style={{
                     backgroundColor: '#fff',
-                    width:170,
+                    width:180,
                     height: 40,
                     right:10,
-                    borderRadius:20,
+                    borderRadius:12,
                     top: 30
                     }}><Text style={{
                         textAlign:'center',

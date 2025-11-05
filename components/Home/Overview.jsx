@@ -117,14 +117,14 @@ export default function Overview() {
           colors={"#FFC000"}
           />
         }>
-          <View style={{ padding: 20 }}>
-          {/* Información de última actualización */}
+          {/*<View style={{ padding: 20 }}>
+           Información de última actualización 
           {lastUpdate && (
             <Text style={{ fontSize: 12, color: '#666'}}>
               Última actualización: {new Date(lastUpdate).toLocaleString()}
             </Text>
           )}
-          </View>
+          </View>*/}
 
           {/* Botón de prueba temporal 
           <View style={{ padding: 20, gap: 10 }}>
@@ -148,7 +148,7 @@ export default function Overview() {
                     fontFamily: 'poppins-semibold',
                     fontSize: 16,
                     color: colors.color_palette_4.lineArt_grey
-                  }}>Upcoming Class</Text>
+                  }}>Clase Próxima</Text>
                 </View>
               </View>
 
@@ -157,9 +157,9 @@ export default function Overview() {
                 showsHorizontalScrollIndicator={false}
               >
                   {ongoingClass ? (
-                  <ClassUpcomingCard clase={ongoingClass} subtitle="Ongoing" />
+                  <ClassUpcomingCard clase={ongoingClass} subtitle="En Curso" />
                   ) : upcomingClass ? (
-                  <ClassUpcomingCard clase={upcomingClass} subtitle="Upcoming" />
+                  <ClassUpcomingCard clase={upcomingClass} subtitle="Próxima" />
                   ) : todayClasses.length > 0 ? (
                   <Text style={{ fontSize: 16, color: "#777" }}>
                       ✅ ¡Finalizaste las clases del día de hoy!
@@ -177,16 +177,16 @@ export default function Overview() {
                 {/* Today's Class - Clases del día de hoy */}
                 <View style={sectionheader.headerRow}>
                   <View style={sectionheader.headerrow_twotexts_onelink}>
-                    <Ionicons name="checkmark-circle-outline" size={28} color="black" />
+                    <Ionicons name="book-outline" size={28} color="black" />
                     <Text style={{
+                      left: 10,
                       fontFamily: 'poppins-semibold',
                       fontSize: 16,
                       color: colors.color_palette_4.lineArt_grey
-                    }}>Todays</Text>
-                    <Text style={[sectionheader.title, {left: 5}]}>Class</Text>
+                  }}>Clases de Hoy</Text>
                   </View>
                   <Link href="/(tabs)/clase" style={sectionheader.linkButton}>
-                    <Text style={sectionheader.linkText}>See All</Text>
+                    <Text style={sectionheader.linkText}>Ver Todos</Text>
                   </Link>
                 </View>
               </View>
@@ -210,10 +210,10 @@ export default function Overview() {
 
           <View style={{marginTop: 20}}>
             <View style={sectionheader.headerRow}>
-              <Ionicons name="checkmark-circle-outline" size={28} color="black" />
+              <Ionicons name="bookmark-outline" size={28} color="black" />
               <Text style={sectionheader.title}>Tareas Pendientes</Text>
               <Link href="/(tabs)/tareas" style={sectionheader.linkButton}>
-                <Text style={sectionheader.linkText}>See All</Text>
+                <Text style={sectionheader.linkText}>Ver Todas</Text>
               </Link>
             </View>
             <ScrollView
