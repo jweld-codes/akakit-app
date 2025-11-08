@@ -3,7 +3,7 @@ import container from '../../constants/container'
 
 export default function Curso() {
   return (
-    <View style={container.main_center}>
+    <View style={container.container}>
       <Text>Curso</Text>
     </View>
   )

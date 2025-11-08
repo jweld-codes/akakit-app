@@ -77,7 +77,7 @@ export default function UpcomingEventsList({ searchQuery = '' }) {
       }
     >
       <View>
-        <Link href="/(extras)/settings" asChild>
+        <Link href="/" asChild>
             <TouchableOpacity style={styles.menuItem}>
               <Ionicons name="archive-outline" size={22} color="#77065fff" />
             </TouchableOpacity>

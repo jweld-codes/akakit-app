@@ -15,7 +15,6 @@ export default{
     //Class Cards - Clases
     classes_container: { 
         paddingHorizontal: 20,
-        height: 1080,
         backgroundColor: '#fff' 
     },
 

@@ -5,9 +5,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import CalendarView from '../../components/Calendar/CalendarView';
 import EventDayModal from '../../components/Calendar/EventDayModal';
 import UpcomingEventsList from '../../components/Calendar/UpcoomingEventsList';
-import FloatingActionButton from '../../components/FloatingActionButton';
-import SearchBar from '../../components/SearchBar';
-import AddItemBottomSheet from '../../modals/AddItemBottomSheet';
 
 export default function CalendarScreen() {
   
@@ -38,9 +35,6 @@ export default function CalendarScreen() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.safeArea}>
-        <View>
-          
-        </View>
         <StatusBar barStyle="dark-content" />
         
         <View style={styles.container}>
@@ -65,14 +59,14 @@ export default function CalendarScreen() {
               <CalendarView onDayPress={handleDayPress} />
             </View>
 
-            {/* SearchBar */}
+            {/* SearchBar 
             <View style={styles.searchContainer}>
               <SearchBar 
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Buscar eventos..."
               />
-            </View>
+            </View>*/}
 
             {/* Lista de próximos eventos */}
             <View style={styles.eventsListContainer}>
@@ -83,8 +77,8 @@ export default function CalendarScreen() {
             <View style={{ height: 100 }} />
           </ScrollView>
 
-          {/* Floating Action Button */}
-          <FloatingActionButton onPress={handleOpenBottomSheet} />
+          {/* Floating Action Button 
+          <FloatingActionButton onPress={handleOpenBottomSheet} />*/}
 
           {/* Modal de eventos del día */}
           <EventDayModal
@@ -93,11 +87,11 @@ export default function CalendarScreen() {
             onClose={handleCloseDayModal}
           />
 
-          {/* Bottom Sheet para agregar evento/tarea */}
+          {/* Bottom Sheet para agregar evento/tarea 
           <AddItemBottomSheet
             isVisible={showBottomSheet}
             onClose={handleCloseBottomSheet}
-          />
+          />*/}
         </View>
       </SafeAreaView>
     </GestureHandlerRootView>

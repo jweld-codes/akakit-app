@@ -1,18 +1,16 @@
-// components/Clases/AddTask.jsx
+// components/Home/AddTask.jsx
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
 import { addDoc, collection, getDocs, limit, orderBy, query, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { Alert, Button, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { db } from "../../../config/firebaseConfig";
 import colors from "../../../constants/colors";
-import container from "../../../constants/container";
-import global from "../../../constants/global";
 import ios_utils_screen from '../../../constants/ios/ios_utils_screen';
 
-export default function AddTask() {
+export default function AddTask({onClose}) {
   const [tareaId, setTareaId] = useState(1);
   const [tareaClaseId, setTareaClaseId] = useState(0);
 
@@ -48,7 +46,6 @@ export default function AddTask() {
       const claseSnapshot = await getDocs(collection(db, "idClaseCollection"));
       const claseList = claseSnapshot.docs.map(doc => doc.data());
       setClase(claseList);
-     // console.log(claseList);
     };
 
     fetchData();
@@ -156,314 +153,577 @@ export default function AddTask() {
   const router = useRouter();
   
   return (
-    <ScrollView stickyHeaderIndices={[0]}>
-      <View style={ios_utils_screen.utils_tabs_black}><Text>.</Text></View>
-      
-      <View style={container.container}>
-        <View style={[global.notSpaceBetweenObjects, {top:20, marginBottom:40}]}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/dashboard')}>
-            <Ionicons name="arrow-back-circle-outline" size={35} color={colors.color_palette_1.lineArt_Purple} />
-          </TouchableOpacity>
-
-          <Text style={{
-            fontSize: 20,
-            fontFamily: 'poppings-regular',
-            color:colors.color_palette_1.lineArt_Purple
-          }}> Go back </Text>
-        </View>
-
-        <View style={{
-          marginBottom:120,
-          borderBottomWidth:1,
-          borderColor: '#c9c6c6ff'
-        }}>
-          <Text style={{
-            fontFamily: 'poppins-bold',
-            fontSize: 50
-          }}>Create New Task</Text>
-          <Text style={{color:'#c9c6c6ff'}}>Event Id to be created: {tareaId}</Text>
-        </View>
-
-        {/* Form */}
-        <View style={{padding: 10, bottom:100}}>
+    <View style={[styles.mainContainer, {zIndex: 1000}]}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={ios_utils_screen.utils_tabs_black}><Text>.</Text></View>
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity 
+          onPress={() => {
+            if (onClose) {
+              onClose();
+            } else {
+              router.back(); 
+            }
+          }}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
           
-          <View>
-            <Text style={styles.subtitle}>Titulo de la Tarea</Text>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Nombre de la tarea" 
-              value={tareaTitulo} 
-              onChangeText={setTareaTitulo} 
-            />
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Nueva Tarea</Text>
+            <View style={styles.idBadge}>
+              <Ionicons name="pricetag-outline" size={14} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.idText}>ID: {tareaId}</Text>
+            </View>
           </View>
+        </View>
+
+        {/* Form Container */}
+        <View style={styles.formContainer}>
           
-          <View style={{marginBottom:20}}>
-                <View>
-                  <Text style={styles.subtitle}>Descripcion</Text>
-                  <TextInput 
-                    style={[styles.input, {height: 150}]} 
-                    placeholder="Descripcion de la tarea" 
-                    value={tareaDescripcion} 
-                    onChangeText={setTareaDescripcion} 
+          {/* Título Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="create-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.sectionTitle}>Información Básica</Text>
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Título de la Tarea *</Text>
+              <TextInput 
+                style={styles.input} 
+                placeholder="Ej: Proyecto Final, Quiz 1, Tarea 3..." 
+                placeholderTextColor="#999"
+                value={tareaTitulo} 
+                onChangeText={setTareaTitulo} 
+              />
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Descripción</Text>
+              <TextInput 
+                style={[styles.input, styles.textArea]} 
+                placeholder="Describe los detalles de la tarea..."
+                placeholderTextColor="#999"
+                value={tareaDescripcion} 
+                onChangeText={setTareaDescripcion}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
+
+          {/* Fechas Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="calendar-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.sectionTitle}>Fechas y Horarios</Text>
+            </View>
+            
+            {/* Fecha Apertura */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Fecha de Apertura</Text>
+                {(showDatePickerApertura || showTimePickerApertura) && (
+                  <TouchableOpacity 
+                    onPress={() => [setShowDatePickerApertura(false), setShowTimePickerApertura(false)]}
+                    style={styles.hideButton}
+                  >
+                    <Text style={styles.hideButtonText}>Ocultar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              <View style={styles.dateTimeRow}>
+                <TouchableOpacity 
+                  style={styles.dateTimeButton}
+                  onPress={() => [setShowTimePickerApertura(false), setShowDatePickerApertura(true)]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="calendar" size={18} color={colors.color_palette_1.lineArt_Purple} />
+                  <Text style={styles.dateTimeButtonText}>{formatDate(tareaFechaApertura)}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.dateTimeButton}
+                  onPress={() => [setShowDatePickerApertura(false), setShowTimePickerApertura(true)]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="time" size={18} color={colors.color_palette_1.lineArt_Purple} />
+                  <Text style={styles.dateTimeButtonText}>{formatTime(tareaFechaApertura)}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {showDatePickerApertura && (
+                <View style={styles.pickerContainer}>
+                  <DateTimePicker
+                    value={tareaFechaApertura}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={onChangeDateApertura}
+                    textColor="#000"
                   />
+                </View>
+              )}
+
+              {showTimePickerApertura && (
+                <View style={styles.pickerContainer}>
+                  <DateTimePicker
+                    value={tareaFechaApertura}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={onChangeTimeApertura}
+                    textColor="#000"
+                  />
+                </View>
+              )}
+            </View>
+
+            {/* Fecha Entrega */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Fecha de Entrega *</Text>
+                {(showDatePickerEntrega || showTimePickerEntrega) && (
+                  <TouchableOpacity 
+                    onPress={() => [setShowDatePickerEntrega(false), setShowTimePickerEntrega(false)]}
+                    style={styles.hideButton}
+                  >
+                    <Text style={styles.hideButtonText}>Ocultar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              <View style={styles.dateTimeRow}>
+                <TouchableOpacity 
+                  style={styles.dateTimeButton}
+                  onPress={() => [setShowTimePickerEntrega(false), setShowDatePickerEntrega(true)]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="calendar" size={18} color={colors.color_palette_1.lineArt_Purple} />
+                  <Text style={styles.dateTimeButtonText}>{formatDate(tareaFechaEntrega)}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.dateTimeButton}
+                  onPress={() => [setShowDatePickerEntrega(false), setShowTimePickerEntrega(true)]}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="time" size={18} color={colors.color_palette_1.lineArt_Purple} />
+                  <Text style={styles.dateTimeButtonText}>{formatTime(tareaFechaEntrega)}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {showDatePickerEntrega && (
+                <View style={styles.pickerContainer}>
+                  <DateTimePicker
+                    value={tareaFechaEntrega}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={onChangeDateEntrega}
+                    textColor="#000"
+                  />
+                </View>
+              )}
+
+              {showTimePickerEntrega && (
+                <View style={styles.pickerContainer}>
+                  <DateTimePicker
+                    value={tareaFechaEntrega}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={onChangeTimeEntrega}
+                    textColor="#000"
+                  />
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Detalles Académicos Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="school-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.sectionTitle}>Detalles Académicos</Text>
+            </View>
+            
+            <View style={styles.twoColumnRow}>
+              <View style={styles.halfColumn}>
+                <Text style={styles.label}>Estado</Text>
+                <View style={styles.pickerWrapperState}>
+                  <Picker 
+                    style={styles.picker}
+                    selectedValue={tareaEstado} 
+                    onValueChange={setTareaEstado}
+                    itemStyle={styles.pickerItem}
+                  >
+                    <Picker.Item label="Seleccionar" value="" />
+                    <Picker.Item label="En Proceso" value="En Proceso" />
+                    <Picker.Item label="Completado" value="Completado" />
+                  </Picker>
                 </View>
               </View>
 
-          {/* SELECTOR DE FECHA Y HORA */}
-          <View style={{marginBottom: 20}}>
-            <View style={global.aside}>
-                <Text style={styles.subtitle}>Fecha y Hora de Apertura</Text>
-                <TouchableOpacity onPress={() => [setShowDatePickerApertura(false), setShowTimePickerApertura(false)]}>
-                    <Ionicons 
-                    name="arrow-up-circle" 
-                    size={35} 
-                    color={colors.color_palette_1.lineArt_Purple}
-                    />
-                </TouchableOpacity>
+              <View style={styles.halfColumn}>
+                <Text style={styles.label}>Periodo</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Ej: 2024-1"
+                  placeholderTextColor="#999"
+                  value={tareaPeriodo} 
+                  onChangeText={setTareaPeriodo}
+                />
+              </View>
             </View>
 
-            <View style={styles.dateTimeContainer}>
-              <TouchableOpacity 
-                style={styles.dateButton}
-                onPress={() => [setShowTimePickerApertura(false), setShowDatePickerApertura(true)]}
-              >
-                <Ionicons name="calendar-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
-                <Text style={styles.dateButtonText}>{formatDate(tareaFechaApertura)}</Text>
-              </TouchableOpacity>
+            <View style={styles.twoColumnRow}>
+              <View style={styles.halfColumn}>
+                <Text style={styles.label}>Parcial</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="1-4"
+                  placeholderTextColor="#999"
+                  value={tareaParcial} 
+                  onChangeText={setTareaParcial} 
+                  keyboardType="numeric"
+                />
+              </View>
 
-              <TouchableOpacity 
-                style={styles.dateButton}
-                onPress={() => [setShowDatePickerApertura(false), setShowTimePickerApertura(true)]}
-              >
-                <Ionicons name="time-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
-                <Text style={styles.dateButtonText}>{formatTime(tareaFechaApertura)}</Text>
-              </TouchableOpacity>
-            </View>
-
-
-            {showDatePickerApertura && (
-              <DateTimePicker
-              style={[styles.input_datepicker, {color: '#000'}]}
-                value={tareaFechaApertura}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onChangeDateApertura}
-              />
-            )}
-
-            {showTimePickerApertura && (
-              <DateTimePicker
-                style={styles.input_datepicker}
-                value={tareaFechaApertura}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onChangeTimeApertura}
-              />
-            )}
-          </View>
-
-          <View style={{marginBottom: 20}}>
-            <View style={global.aside}>
-                <Text style={styles.subtitle}>Fecha y Hora de Entrega</Text>
-                <TouchableOpacity onPress={() => [setShowDatePickerEntrega(false), setShowTimePickerEntrega(false)]}>
-                    <Ionicons 
-                    name="arrow-up-circle" 
-                    size={35} 
-                    color={colors.color_palette_1.lineArt_Purple}
-                    />
-                </TouchableOpacity>
-            </View>
-
-            <View style={styles.dateTimeContainer}>
-              <TouchableOpacity 
-                style={styles.dateButton}
-                onPress={() => [setShowTimePickerEntrega(false), setShowDatePickerEntrega(true)]}
-              >
-                <Ionicons name="calendar-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
-                <Text style={styles.dateButtonText}>{formatDate(tareaFechaEntrega)}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.dateButton}
-                onPress={() => [setShowDatePickerEntrega(false), setShowTimePickerEntrega(true)]}
-              >
-                <Ionicons name="time-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
-                <Text style={styles.dateButtonText}>{formatTime(tareaFechaEntrega)}</Text>
-              </TouchableOpacity>
-            </View>
-
-
-            {showDatePickerEntrega && (
-              <DateTimePicker
-              style={[styles.input_datepicker, {color: "#000000ff",}]}
-                value={tareaFechaEntrega}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onChangeDateEntrega}
-              />
-            )}
-
-            {showTimePickerEntrega && (
-              <DateTimePicker
-                style={styles.input_datepicker}
-                value={tareaFechaEntrega}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onChangeTimeEntrega}
-              />
-            )}
-          </View>
-
-          <View style={[global.aside, global.spaceBetweenObjects]}>
-            <View>
-                <Text style={styles.subtitle}>Estado</Text>
-                <Picker style={[styles.input_aside_picker, {height:250}]} selectedValue={tareaEstado} onValueChange={setTareaEstado} itemStyle={{color:'#000'}}>
-                    <Picker.Item label="Select" value="" />
-                    <Picker.Item label="En Proceso" value="En Proceso" />
-                    <Picker.Item label="Completado" value="Completado" />
-                </Picker>
-            </View>
-
-            <View style={{left: 20}}>
-                <View>
-                    <Text style={styles.subtitle}>Periodo</Text>
-                    <TextInput style={styles.input_aside} placeholder="Periodo" value={tareaPeriodo} onChangeText={setTareaPeriodo} keyboardType="numeric" />
-                </View>
-
-                <Text style={styles.subtitle}>Parcial</Text>
-                <TextInput style={[styles.input_aside, {right:2}]} placeholder="Parcial" value={tareaParcial} onChangeText={setTareaParcial} keyboardType="numeric" />
-
-                <View>
-                    <Text style={styles.subtitle}>Semana</Text>
-                    <TextInput style={[styles.input_aside, {right:2}]} placeholder="Semana" value={tareaSemana} onChangeText={setTareaSemana} keyboardType="numeric" />    
-                </View>
-            </View>
-        </View>          
-
-          <View style={{top:40}}>
-            <View style={{top:15, marginBottom:20}}>
-              <Text style={styles.subtitle}>Valor de la Tarea</Text>
-              <TextInput 
-                style={styles.input} 
-                placeholder="URL de Imagen" 
-                value={tareaValor} 
-                onChangeText={setTareaValor} 
-                keyboardType="numeric"
-              />
-            </View>
-
-            <View style={{top:15, marginBottom:20}}>
-              <Text style={styles.subtitle}>Valor de la Tarea Completada</Text>
-              <TextInput 
-                style={styles.input} 
-                placeholder="Valor Final" 
-                value={tareaValorFinal} 
-                onChangeText={setTareaValorFinal} 
-                keyboardType="numeric"
-              />
-            </View>
-
-          </View>
-
-          <View style={{top:60}}>
-            <View style={global.aside}>
-              <Text style={styles.subtitle}>Selecciona Clase</Text>
-              
-              <TouchableOpacity onPress={() => router.push("/QADir/Clases/AddClassScreen")}>
-                <Ionicons name="add-circle-sharp" size={35} color={colors.color_palette_1.lineArt_Purple} />
-              </TouchableOpacity>
-            </View>
-            <Picker 
-              selectedValue={tareaClaseId} 
-              onValueChange={setTareaClaseId} 
-              itemStyle={styles.input_picker} 
-              style={{bottom:80}}
-            >
-              <Picker.Item label="Selecciona una Clase" value="N/A" />
-              {clase.map((doc, index) => (
-                <Picker.Item key={index} label={doc.class_name} value={doc.id || doc.clase_id} />
-              ))}
-            </Picker>
-
-            <View style={{
-              height:50,
-              backgroundColor:'rgba(153, 213, 255, 1)',
-              top:40,
-              marginBottom:50,
-              borderRadius:15,
-              alignItems:'center',
-              paddingTop:5
-            }}>
-              <Button title="Guardar Tarea" onPress={handleAddTarea} />
+              <View style={styles.halfColumn}>
+                <Text style={styles.label}>Semana</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="1-16"
+                  placeholderTextColor="#999"
+                  value={tareaSemana} 
+                  onChangeText={setTareaSemana} 
+                  keyboardType="numeric"
+                />
+              </View>
             </View>
           </View>
+
+          {/* Calificación Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="star-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.sectionTitle}>Calificación</Text>
+            </View>
+            
+            <View style={styles.twoColumnRow}>
+              <View style={styles.halfColumn}>
+                <Text style={styles.label}>Valor Total</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Ej: 10"
+                  placeholderTextColor="#999"
+                  value={tareaValor} 
+                  onChangeText={setTareaValor} 
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.halfColumn}>
+                <Text style={styles.label}>Valor Obtenido</Text>
+                <TextInput 
+                  style={styles.input} 
+                  placeholder="Ej: 8.5"
+                  placeholderTextColor="#999"
+                  value={tareaValorFinal} 
+                  onChangeText={setTareaValorFinal} 
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Clase Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="book-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.sectionTitle}>Clase</Text>
+              <TouchableOpacity 
+                onPress={() => router.push("/QADir/Clases/AddClassScreen")}
+                style={styles.addButton}
+              >
+                <Ionicons name="add-circle" size={24} color={colors.color_palette_1.lineArt_Purple} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.pickerWrapperClass}>
+              <Picker 
+                style={styles.picker}
+                selectedValue={tareaClaseId} 
+                onValueChange={setTareaClaseId} 
+                itemStyle={styles.pickerItem}
+              >
+                <Picker.Item label="Selecciona una Clase" value="N/A" />
+                {clase.map((doc, index) => (
+                  <Picker.Item key={index} label={doc.class_name} value={doc.id || doc.clase_id} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+
+          {/* Save Button */}
+          <TouchableOpacity 
+            style={styles.saveButton}
+            onPress={handleAddTarea}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="checkmark-circle" size={24} color="#fff" />
+            <Text style={styles.saveButtonText}>Guardar Tarea</Text>
+          </TouchableOpacity>
+
+          <View style={styles.bottomSpacer} />
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
-  subtitle: { fontSize: 16, marginBottom: 10, color: "#555" },
-  
-  input: {
-    borderWidth: 2,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
   },
-  input_aside: {
-    width:150,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
+  scrollView: {
+    flex: 1,
   },
-  input_aside_picker: {
-    width:150,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+  scrollContent: {
+    flexGrow: 1,
   },
   
-  label: { fontSize: 16, marginBottom: 5 },
-  input_picker: {
-    color: '#000',
-    top: 80,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+  // Header Styles
+  header: {
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+    paddingTop: 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  input_datepicker: {
-    top: 20,
-    borderWidth: 1,
-    borderRadius: 8,
-    backgroundColor: '#6e6e6eff'
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
   },
-  dateTimeContainer: {
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontFamily: 'poppins-bold',
+    color: '#fff',
+    marginBottom: 5,
+  },
+  idBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  idText: {
+    fontSize: 12,
+    fontFamily: 'poppins-semibold',
+    color: colors.color_palette_1.lineArt_Purple,
+    marginLeft: 4,
+  },
+  
+  // Form Container
+  formContainer: {
+    padding: 20,
+  },
+  
+  // Section Styles
+  section: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
+  },
+  addButton: {
+    padding: 4,
+  },
+  
+  // Input Group
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontFamily: 'poppins-medium',
+    color: '#555',
+    marginBottom: 8,
+  },
+  labelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  hideButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+  },
+  hideButtonText: {
+    fontSize: 12,
+    fontFamily: 'poppins-medium',
+    color: colors.color_palette_1.lineArt_Purple,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    fontFamily: 'poppins-regular',
+    color: '#333',
+    backgroundColor: '#fafafa',
+  },
+  textArea: {
+    height: 120,
+    paddingTop: 14,
+  },
+  
+  // Two Column Layout
+  twoColumnRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 16,
+  },
+  halfColumn: {
+    flex: 1,
+  },
+  
+  // Date Time Styles
+  dateTimeRow: {
+    flexDirection: 'row',
     gap: 10,
   },
-  dateButton: {
+  dateTimeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderWidth: 2,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 15,
-    backgroundColor: '#f9f9f9',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: '#fafafa',
   },
-  dateButtonText: {
-    fontSize: 14,
+  dateTimeButtonText: {
+    fontSize: 13,
+    fontFamily: 'poppins-medium',
     color: '#333',
-    fontWeight: '500',
+  },
+  pickerContainer: {
+    marginTop: 12,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  
+  // Picker Styles
+  pickerWrapperState: {
+    borderWidth: 2,
+    borderColor: '#f6f6f6ff',
+    borderRadius: 12,
+    backgroundColor: '#f0f0f0ff',
+    overflow: 'hidden',
+    height: 70,
+    width: 152
+  },
+  pickerWrapperClass: {
+    borderWidth: 2,
+    borderColor: '#f6f6f6ff',
+    borderRadius: 12,
+    overflow: 'hidden',
+    height: 70,
+  },
+
+  picker: {
+    bottom: 75,
+  },
+  
+   pickerItem: {
+    color: '#530344ff',
+    backgroundColor: '#f0f0f0ff',
+    fontSize: 16,
+  },
+
+  input_picker: {
+    color: '#000',
+    fontSize: 15,
+  },
+  
+  // Save Button
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    shadowColor: colors.color_palette_1.lineArt_Purple,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  saveButtonText: {
+    fontSize: 17,
+    fontFamily: 'poppins-semibold',
+    color: '#fff',
+    marginLeft: 8,
+  },
+  
+  bottomSpacer: {
+    height: 40,
   },
 });

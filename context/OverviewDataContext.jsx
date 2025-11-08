@@ -236,12 +236,11 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
     : 0;
 
   // ==========================================
-// SUMAS DE TAREAS POR PARCIAL
-// ==========================================
+  // SUMAS DE TAREAS POR PARCIAL
+  // ==========================================
 const sumas_tareas_parcial = taskList.reduce((acc, task) => {
   const parcial = parseFloat(task.tarea_parcial);
   const valorFinal = parseFloat(task.tarea_valor_final);
-  const claseId = task.tarea_id_clase;
 
   if (!acc[parcial]) {
     acc[parcial] = {
@@ -301,6 +300,7 @@ const bloque_2 = (
   const promedios_por_periodo = taskList.reduce((acc, task) => {
     const periodo = task.tarea_periodo || 'Sin periodo';
     const valorFinal = parseFloat(task.tarea_valor_final);
+
     
     if (!acc[periodo]) {
       acc[periodo] = {
@@ -332,6 +332,7 @@ const bloque_2 = (
       ? ((data.total_obtenido / data.total_posible) * 100).toFixed(2)
       : '0.00';
   });
+
 
   // ==========================================
   // PROMEDIOS POR CLASE
@@ -559,14 +560,14 @@ const bloque_2 = (
   // Función para obtener datos del gráfico de clases
   const getClassesPieData = () => [
     {
-      name: "Finished",
+      name: "Completada",
       population: classesMetadata.finished,
       color: colors.color_palette_2.pink_darker,
       legendFontColor: "#7F7F7F",
       legendFontSize: 12,
     },
     {
-      name: "Enroll",
+      name: "Matriculada",
       population: classesMetadata.enrolled,
       color: colors.color_palette_2.lineArt_Blue,
       legendFontColor: "#7F7F7F",

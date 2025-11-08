@@ -31,7 +31,7 @@ const { width } = Dimensions.get("window");
     {
       icon: "time-outline",
       label: "Flujograma\nDe la Carrera",
-      route: "",
+      route: "/(tabs)/curso",
       color: "#C2185B",
       gradient: ["#cb1ee9ff", colors.color_palette_1.lineArt_Purple],
     },

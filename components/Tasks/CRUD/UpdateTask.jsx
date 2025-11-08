@@ -48,6 +48,8 @@ export default function UpdateTask({ visible, task, onClose, onUpdated }) {
 
   useEffect(() => {
   if (task) {
+    //console.log(task)
+    //console.log("UpdateTask: ID es, ", task.id);
     setTareaTitulo(task.tarea_titulo || "");
     setTareaDescripcion(task.tarea_descripcion || "");
     setTareaEstado(task.tarea_estado || "");
@@ -136,7 +138,7 @@ export default function UpdateTask({ visible, task, onClose, onUpdated }) {
   if (!task?.id) return;
   try {
     const taskRef = doc(db, 'idTareasCollection', task.id);
-
+    //console.log("UpdateTask: ID es, ", task.id);
     await updateDoc(taskRef, {
       tarea_titulo: tareaTitulo,
       tarea_descripcion: tareaDescripcion,

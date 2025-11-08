@@ -24,7 +24,6 @@ export default function TaskDetailModal({ visible, task, onClose, onEdit, onDele
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        {/* Header */}
         <View style={[styles.header, { backgroundColor: statusColor }]}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#fff" />
@@ -33,15 +32,12 @@ export default function TaskDetailModal({ visible, task, onClose, onEdit, onDele
         </View>
 
         <ScrollView style={styles.content}>
-          {/* Estado Badge */}
           <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
             <Text style={styles.statusText}>{task.tarea_estado}</Text>
           </View>
 
-          {/* Título */}
           <Text style={styles.title}>{task.tarea_titulo}</Text>
 
-          {/* Descripción */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Descripción</Text>
             <Text style={styles.description}>
@@ -49,7 +45,6 @@ export default function TaskDetailModal({ visible, task, onClose, onEdit, onDele
             </Text>
           </View>
 
-          {/* Información */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Información</Text>
             
@@ -100,7 +95,6 @@ export default function TaskDetailModal({ visible, task, onClose, onEdit, onDele
             </View>
           </View>
 
-          {/* Calificación */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Calificación</Text>
             
@@ -121,7 +115,6 @@ export default function TaskDetailModal({ visible, task, onClose, onEdit, onDele
             </View>
           </View>
 
-          {/* Descripción */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Comentarios de retroalimentación</Text>
             <Text style={styles.description}>
@@ -132,7 +125,6 @@ export default function TaskDetailModal({ visible, task, onClose, onEdit, onDele
           <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Footer con acciones */}
         <View style={styles.footer}>
           <TouchableOpacity 
             style={[styles.actionButton, styles.editButton]}

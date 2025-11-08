@@ -11,6 +11,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
   const [classPeriod, setClassPeriod] = useState(classData?.class_period || "");
   const [classYear, setClassYear] = useState(classData?.class_year || "");
   const [classIdDocente, setClassIdDocente] = useState(classData?.class_id_docente || "");
+  const [classIdCurso, setClassIdCurso] = useState(classData?.class_id_curso || "");
   const [classCredit, setClassCredit] = useState(classData?.class_credit || "");
   const [claseModality, setClaseModality] = useState(classData?.class_modality || "");
   const [classNotasPersonales, setClassNotasPersonales] = useState(classData?.class_notas_personales || "");
@@ -19,13 +20,14 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
   const [classEnrollment, setClassEnrollment] = useState(classData?.class_enrollment || "");
   const [classSection, setClassSection] = useState(classData?.class_section || "");
   const [classType, setClassType] = useState(classData?.class_type || "");
-  const [classUrl, setClassUrl] = useState(classData?.class_url_acces || "");
+  const [classUrl, setClassUrl] = useState(classData?.class_url_access || "");
   const [classEstado, setClassEstado] = useState(classData?.class_estado || "");
   const [docentesName, setDocenteName] = useState(docenteData?.docente_fullName || "");
   const [docentesId, setDocenteId] = useState(docenteData?.docente_id || "");
 
   useEffect(() => {
     if (classData) {
+      //console.log("UpdateClase: ID es, ", classData.id);
       setClassName(classData.class_name || '');
       setClassCodigo(classData.class_codigo || '');
       setClassSection(classData.class_section || '');
@@ -39,7 +41,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
       setClassHours(classData.class_hours || '');
       setClassEnrollment(classData.class_enrollment || '');
       setClassType(classData.class_type || '');
-      setClassUrl(classData.class_url_acces || '');
+      setClassUrl(classData.class_url_access || '');
       setClassEstado(classData.class_estado || '');
       setDocenteName(docenteData?.docente_fullName || '');
       setDocenteId(docenteData?.docente_id || '');
@@ -50,6 +52,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
     if (!classData?.id) return;
     try {
       const classRef = doc(db, 'idClasesCollection', classData.id);
+      //console.log("UpdateClase: ID es, ", classData.id);
       await updateDoc(classRef, {
         class_name: className,
         class_codigo: classCodigo,
@@ -63,7 +66,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
         class_nota_personales: classNotasPersonales,
         class_period: classPeriod,
         class_type: classType,
-        class_url_acces: classUrl,
+        class_url_access: classUrl,
         class_year: classYear,
         class_estado: classEstado,
         updatedAt: Timestamp.now(),
