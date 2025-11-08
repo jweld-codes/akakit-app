@@ -16,6 +16,7 @@ import {
 import { ProgressBar } from 'react-native-paper';
 import colors from '../../constants/colors';
 import container from '../../constants/container';
+import global from '../../constants/global';
 import sectionheader from '../../constants/ios/sectionheader';
 import { useOverviewData } from '../../context/OverviewDataContext';
 import { getClassById } from "../../services/GetClassById";
@@ -191,6 +192,14 @@ export default function Clases({onModalPress}) {
     setRefreshing(false);
   };
 
+  const [loadClass, setloadClass] = useState(true);
+  const loadClassRefresh = async () => {
+    setLoadingClasses(true);
+    const claseList = await getClassDocumentCollection("idClaseCollection");
+    setClase(claseList);
+    setLoadingClasses(false);
+  };
+
   if (loading && !lastUpdate) {
     return (
       <View style={styles.mainLoadingContainer}>
@@ -229,14 +238,28 @@ export default function Clases({onModalPress}) {
             </Link>
           </View>
 
-          {/* Badge con contador de clases */}
           {!loadingClasses && classe.length > 0 && (
-            <View style={styles.countBadge}>
+            <>
+            <View style={global.aside}>
+              <View style={styles.countBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
               <Text style={styles.countText}>
                 {classe.length} {classe.length === 1 ? 'clase activa' : 'clases activas'}
               </Text>
             </View>
+
+            <View  style={global.notSpaceBetweenObjects}>
+              <TouchableOpacity 
+                onPress={loadClassRefresh}
+                style={styles.refreshButton}
+              >
+                <Ionicons name="refresh" size={20} color="#782170" />
+              </TouchableOpacity>
+              <Text>Refrescar</Text>
+            </View>
+            </View>
+            
+            </>
           )}
         </View>
 
@@ -423,6 +446,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#2e7d32',
     marginLeft: 6,
+  },
+  refreshButton: {
+    padding: 4,
   },
   loadingClassesContainer: {
     paddingVertical: 80,

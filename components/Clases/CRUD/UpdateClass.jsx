@@ -9,9 +9,9 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
   const [classCodigo, setClassCodigo] = useState(classData?.class_codigo || "");
   const [className, setClassName] = useState(classData?.class_name || "");
   const [classPeriod, setClassPeriod] = useState(classData?.class_period || "");
-  const [classYear, setClassYear] = useState(classData?.class_year || "");
+
   const [classIdDocente, setClassIdDocente] = useState(classData?.class_id_docente || "");
-  const [classIdCurso, setClassIdCurso] = useState(classData?.class_id_curso || "");
+
   const [classCredit, setClassCredit] = useState(classData?.class_credit || "");
   const [claseModality, setClaseModality] = useState(classData?.class_modality || "");
   const [classNotasPersonales, setClassNotasPersonales] = useState(classData?.class_notas_personales || "");
@@ -22,17 +22,18 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
   const [classType, setClassType] = useState(classData?.class_type || "");
   const [classUrl, setClassUrl] = useState(classData?.class_url_access || "");
   const [classEstado, setClassEstado] = useState(classData?.class_estado || "");
+
   const [docentesName, setDocenteName] = useState(docenteData?.docente_fullName || "");
   const [docentesId, setDocenteId] = useState(docenteData?.docente_id || "");
 
   useEffect(() => {
     if (classData) {
-      //console.log("UpdateClase: ID es, ", classData.id);
+      console.log(classData)
+      console.log("UpdateClase: ID es, ", classData.id);
       setClassName(classData.class_name || '');
       setClassCodigo(classData.class_codigo || '');
       setClassSection(classData.class_section || '');
       setClassPeriod(classData.class_period || '');
-      setClassYear(classData.class_year || '');
       setClassIdDocente(classData.class_id_docente || '');
       setClassCredit(classData.class_credit || '');
       setClaseModality(classData.class_modality || '');
@@ -43,6 +44,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
       setClassType(classData.class_type || '');
       setClassUrl(classData.class_url_access || '');
       setClassEstado(classData.class_estado || '');
+
       setDocenteName(docenteData?.docente_fullName || '');
       setDocenteId(docenteData?.docente_id || '');
     }
@@ -51,8 +53,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
   const handleUpdate = async () => {
     if (!classData?.id) return;
     try {
-      const classRef = doc(db, 'idClasesCollection', classData.id);
-      //console.log("UpdateClase: ID es, ", classData.id);
+      const classRef = doc(db, 'idClaseCollection', classData.id);
       await updateDoc(classRef, {
         class_name: className,
         class_codigo: classCodigo,
@@ -67,15 +68,14 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
         class_period: classPeriod,
         class_type: classType,
         class_url_access: classUrl,
-        class_year: classYear,
         class_estado: classEstado,
         updatedAt: Timestamp.now(),
       });
-      Alert.alert('✅ Éxito', 'Clase actualizada correctamente');
+      Alert.alert('Éxito', 'Clase actualizada correctamente');
       onUpdated?.();
     } catch (error) {
       console.error(error);
-      Alert.alert('❌ Error', 'No se pudo actualizar la clase');
+      Alert.alert('Error', 'No se pudo actualizar la clase');
     }
   };
 
@@ -243,18 +243,6 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
                     placeholder="I PAC"
                     style={styles.input}
                     placeholderTextColor="#aaa"
-                  />
-                </View>
-
-                <View style={styles.halfInput}>
-                  <Text style={styles.label}>Año</Text>
-                  <TextInput
-                    value={classYear}
-                    onChangeText={setClassYear}
-                    placeholder="2025"
-                    style={styles.input}
-                    placeholderTextColor="#aaa"
-                    keyboardType="numeric"
                   />
                 </View>
               </View>

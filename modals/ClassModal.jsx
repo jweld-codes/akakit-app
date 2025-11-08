@@ -45,6 +45,7 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [classToEdit, setClassToEdit] = useState(null);
   const [docenteToEdit, setDocenteToEdit] = useState(null);
+  const [periodToEdit, setPeriodToEdit] = useState(null);
   //const [showAddTask, setShowAddTask] = useState(false);
 
   const {tasksValueMetadata, refreshData: refreshOverviewData } = useOverviewData();
@@ -114,7 +115,6 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
    const handleTabChange = useCallback(async (tabId) => {
     setActiveTab(tabId);
     
-    // Si cambiamos al tab de tareas, refrescar datos
     if (tabId === 'tareas') {
       await fetchClassData(false);
     }
@@ -213,7 +213,6 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
   };
 
   const handleEdit = () => {
-    setDocenteToEdit(docenteData);
     setClassToEdit(claseData);
     setShowUpdateModal(true);
   };
@@ -293,6 +292,7 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
             visible={showUpdateModal}
             classData={classToEdit}
             docenteData={docenteData}
+            periodoData={periodData}
             onClose={() => setShowUpdateModal(false)}
             onUpdated={() => {
               setShowUpdateModal(false);
