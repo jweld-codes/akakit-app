@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from "@react-native-picker/picker";
-import { doc, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, Timestamp, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { db } from '../../../config/firebaseConfig';
@@ -28,8 +28,8 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
 
   useEffect(() => {
     if (classData) {
-      console.log(classData)
-      console.log("UpdateClase: ID es, ", classData.id);
+      //console.log(classData)
+     // console.log("UpdateClase: ID es, ", classData.id);
       setClassName(classData.class_name || '');
       setClassCodigo(classData.class_codigo || '');
       setClassSection(classData.class_section || '');
@@ -51,9 +51,23 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
   }, [classData]);
 
   const handleUpdate = async () => {
-    if (!classData?.id) return;
+    if (!classData?.clase_id) return;
     try {
-      const classRef = doc(db, 'idClaseCollection', classData.id);
+      const classSnap = await getDocs(collection(db, "idClaseCollection"));
+      const claseDoc = classSnap.docs.find(doc => {
+        const data = doc.data();
+        return (
+          data.clase_id === classData?.clase_id || 
+          data.clase_id === String(classData?.clase_id) ||
+          data.clase_id === Number(classData?.clase_id)
+        );
+      });
+          if (!claseDoc) {
+        console.error(`No se encontró clase con clase_id: ${classData?.clase_id}`);
+        return false;
+      }
+
+      const classRef = doc(db, 'idClaseCollection', claseDoc.id);
       await updateDoc(classRef, {
         class_name: className,
         class_codigo: classCodigo,
@@ -64,7 +78,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
         class_enrollment: classEnrollment,
         class_id_docente: classIdDocente,
         class_modality: claseModality,
-        class_nota_personales: classNotasPersonales,
+        class_notas_personales: classNotasPersonales,
         class_period: classPeriod,
         class_type: classType,
         class_url_access: classUrl,

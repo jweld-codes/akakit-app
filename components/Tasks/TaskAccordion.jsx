@@ -121,9 +121,6 @@ export default function TaskAccordion({ tasks, classColor , onRemove, onTaskUpda
     );
   };
 
-  
-
-
   // Calcular estadísticas por parcial
   const getParcialStats = (parcial) => {
     const semanas = organizedTasks[parcial];
