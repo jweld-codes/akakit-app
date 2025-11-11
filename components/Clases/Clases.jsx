@@ -244,7 +244,7 @@ export default function Clases({onModalPress}) {
               <View style={styles.countBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
               <Text style={styles.countText}>
-                {classe.length} {classe.length === 1 ? 'clase activa' : 'clases activas'}
+                {classe.length} {classe.length === 1 ? 'Activo' : 'Inactivo'}
               </Text>
             </View>
 

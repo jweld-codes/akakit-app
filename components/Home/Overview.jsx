@@ -7,6 +7,7 @@ import {
   Dimensions,
   RefreshControl,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -66,7 +67,6 @@ export default function Overview() {
     totalTasks,
     tasksValueMetadata,
     promedioGeneral,
-    promediosPorPeriodo,
     promediosPorClase,
     enrolledClase,
     finishedClase,
@@ -75,6 +75,8 @@ export default function Overview() {
     getClassesPieData,
     loading,
     lastUpdate,
+    promedioPeriodoActual,
+    promedioGrado,
     refreshData,
   } = useOverviewData();
 
@@ -96,6 +98,7 @@ export default function Overview() {
 
   return (
     <View style={container.container}>
+      <StatusBar barStyle="light-content"></StatusBar>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -119,28 +122,28 @@ export default function Overview() {
               <Ionicons name="trophy" size={28} color="#FFC000" />
             </View>
             <View style={[styles.heroStatContent, global.textCenterObjects]}>
-              <Text style={[styles.heroStatLabel, global.textCenterObjects]}>Promedio de Graduación</Text>
-              <Text style={styles.heroStatValue}>{promedioGeneral}%</Text>
+              <Text style={[styles.heroStatLabel, global.textCenterObjects]}>Promedio de Graduacion</Text>
+              <Text style={styles.heroStatValue}>{promedioGrado}%</Text>
               <Text style={styles.heroStatSubtext}>Actualizado</Text>
             </View>
           </View>
 
-          {Object.entries(promediosPorPeriodo).map(([periodo, data]) => (
-            <View key={periodo} style={[styles.heroStatCard,  global.centerObjects]}>
-              <View style={[styles.heroStatIcon, { backgroundColor: '#E3F2FD' }]}>
-                <Ionicons name="calendar" size={28} color="#2196F3" />
-              </View>
-              <View style={[styles.heroStatContent, global.textCenterObjects]}>
-                <Text style={[styles.heroStatLabel, global.textCenterObjects]}>Promedio del Periodo Actual</Text>
-                <Text style={styles.heroStatValue}>{data.porcentaje}%</Text>
-                <Text style={styles.heroStatSubtext}>Actualizado</Text>
-              </View>
-            </View>
-          ))}
+          <View style={[styles.heroStatCard, global.centerObjects]}>
+          <View style={[styles.heroStatIcon, { backgroundColor: '#E3F2FD' }]}>
+            <Ionicons name="calendar" size={28} color="#2196F3" />
+          </View>
+          <View style={[styles.heroStatContent, global.textCenterObjects]}>
+            <Text style={[styles.heroStatLabel, global.textCenterObjects]}>
+              Promedio del Periodo Actual
+            </Text>
+            <Text style={styles.heroStatValue}>{promedioPeriodoActual}%</Text>
+            <Text style={styles.heroStatSubtext}>Actualizado</Text>
+          </View>
+        </View>
         </View>
 
         {/* Clase Próxima o En Curso */}
-        <View style={styles.section}>
+        <View style={[styles.section, {paddingHorizontal:10}]}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
               <Ionicons name="stopwatch" size={24} color="#782170" />
@@ -149,7 +152,7 @@ export default function Overview() {
               </Text>
             </View>
             {ongoingClass && (
-              <View style={styles.liveBadge}>
+              <View style={[styles.liveBadge, {paddingHorizontal:10}]}>
                 <View style={styles.liveDot} />
                 <Text style={styles.liveText}>EN VIVO</Text>
               </View>
@@ -159,7 +162,7 @@ export default function Overview() {
           <ScrollView
             horizontal 
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScrollContent}
+            contentContainerStyle={[styles.horizontalScrollContent, {paddingHorizontal: 4}]}
           >
             {ongoingClass ? (
               <ClassUpcomingCard clase={ongoingClass} subtitle="En Curso" />
@@ -210,7 +213,7 @@ export default function Overview() {
               <ScrollView
                 horizontal 
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScrollContent}
+                contentContainerStyle={[styles.horizontalScrollContent, {height:250}]}
               >
                 {todayClasses.map((cls) => (
                   <ClassTodayCard key={cls.id} clase={cls} />
@@ -250,7 +253,7 @@ export default function Overview() {
         </View>
 
         {/* Estadísticas - Resumen de Tareas */}
-        <View style={[styles.section, {paddingHorizontal: 6}]}>
+        <View style={[styles.section, {paddingHorizontal: 4}]}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderLeft}>
               <Ionicons name="stats-chart" size={24} color="#782170" />

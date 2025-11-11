@@ -33,7 +33,7 @@ const { width } = Dimensions.get("window");
     {
       icon: "time-outline",
       label: "Historial\nde Clases",
-      route: "/(tabs)/curso",
+      route: "/QADir/Clases/HistorialClassScreen",
       color: "#C2185B",
       gradient: ["#cb1ee9ff", colors.color_palette_1.lineArt_Purple],
     },
@@ -45,7 +45,7 @@ const { width } = Dimensions.get("window");
       gradient: ["#E64A19", colors.color_palette_1.orange_darker],
     },
   ];
-
+ 
 export default function QuickActionsCards_ClassTabs() {
 const router = useRouter();
 

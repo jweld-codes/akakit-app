@@ -38,7 +38,6 @@ export const OverviewDataProvider = ({ children }) => {
     valor_total_posible: '0.00',
     promedio_general: '0.00',
     porcentaje_completado: '0.00',
-    promedios_por_periodo: {},
     promedios_por_clase: {},
     sumas_tareas_parcial: {},
     bloques: {
@@ -144,7 +143,6 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
       valor_total_posible: '0.00',
       promedio_general: '0.00',
       porcentaje_completado: '0.00',
-      promedios_por_periodo: {},
       promedios_por_clase: {},
       sumas_tareas_completadas: {},
       bloques: {
@@ -210,6 +208,10 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
   const tareas_con_valor_inicial = taskList.filter(
     task => task.tarea_valor > 0
   ).length;
+
+  const clases_estado_activo = classList.filter(
+    clase => clase.clase_estado === "Activo"
+  ).length;
   
   const tareas_calificadas = taskList.filter(
     task => task.tarea_valor_final !== undefined && 
@@ -234,6 +236,8 @@ const calculateTasksValueMetadata = (taskList, classList = []) => {
   const porcentaje_completado = valor_total_posible > 0
     ? (valor_total_obtenido / valor_total_posible) * 100
     : 0;
+
+  
 
   // ==========================================
   // SUMAS DE TAREAS POR PARCIAL
@@ -297,48 +301,51 @@ const bloque_2 = (
   // PROMEDIOS POR PERIODO
   // Cálculo de todas las tareas y exmanes juntos de las clases de dicho periodo
   // ==========================================
-  const promedios_por_periodo = taskList.reduce((acc, task) => {
-    const periodo = task.tarea_periodo || 'Sin periodo';
-    const valorFinal = parseFloat(task.tarea_valor_final);
+  const promedioPeriodoActual = (() => {
+    let total = 0;
+    let count = 0;
+    classList.forEach(clase => {
+      if (clase.class_enrollment !== "Cursada" && clase.class_promedio) {
+        total += parseFloat(clase.class_promedio);
+        count++;
+      }
+    });
+    return count > 0 ? (total / count).toFixed(2) : '0.00';
+  })();
 
-    
-    if (!acc[periodo]) {
-      acc[periodo] = {
-        total_obtenido: 0,
-        total_posible: 0,
-        tareas_calificadas: 0,
-        tareas_totales: 0,
-      };
-    }
-    
-    acc[periodo].tareas_totales += 1;
-    acc[periodo].total_posible += parseFloat(task.tarea_valor) || 0;
-    
-    if (valorFinal !== undefined && valorFinal !== null && valorFinal >= 0) {
-      acc[periodo].total_obtenido += valorFinal;
-      acc[periodo].tareas_calificadas += 1;
-    }
-    
-    return acc;
-  }, {});
+  const promedioGrado = (() => {
+    let totalGrado = 0;
+    let countGrado = 0;
+    classList.forEach(clase => {
+      if (clase.class_promedio) {
+        totalGrado += parseFloat(clase.class_promedio);
+        countGrado++;
+      }
+    //console.log(`Clase Encontrada: ${clase.class_name}. Promedio: ${clase.class_promedio}. Total ${totalGrado}. Clases Total ${countGrado}`)
+    });
 
-  // Calcular promedios finales por periodo
-  Object.keys(promedios_por_periodo).forEach(periodo => {
-    const data = promedios_por_periodo[periodo];
-    data.promedio = data.tareas_calificadas > 0
-      ? (data.total_obtenido / data.tareas_calificadas).toFixed(2)
-      : '0.00';
-    data.porcentaje = data.total_posible > 0
-      ? ((data.total_obtenido / data.total_posible) * 100).toFixed(2)
-      : '0.00';
-  });
+    return countGrado > 0 ? (totalGrado / countGrado).toFixed(2) : '0.00';
+  })();
 
+  const sumCreditos = (() => {
+    let total_credits = 0;
+    let countCredits = 0;
+
+    classList.forEach(clase => {
+      if(clase.class_credit){
+         total_credits += parseFloat(clase.class_credit);
+         countCredits++;
+         //console.log(`Clase Encontrada: ${clase.class_name}. Creditos: ${clase.class_credit}. Total ${total_credits}.`)
+      }
+    });
+    return total_credits;
+  })();
 
   // ==========================================
   // PROMEDIOS POR CLASE
   // Cálculo de todas las tareas y exmanes juntos de la clase
   // ==========================================
-  const promedios_por_clase = taskList.reduce((acc, task) => {
+  const promedios_por_clase = classList.reduce((acc, task) => {
     const claseId = task.tarea_id_clase || 'Sin clase';
     const valorFinal = parseFloat(task.tarea_valor_final);
 
@@ -378,6 +385,7 @@ const bloque_2 = (
 
       acc[claseId].tareas_calificadas += 1;
     }
+    //console.log(`Nombre = ${acc[claseId].class_name}. Total Possible = ${acc[claseId].total_posible}. Tareas Totales = ${acc[claseId].tareas_totales}. Total Obtenido = ${acc[claseId].total_posible}. Tareas Calificadas Total = ${acc[claseId].tareas_calificadas}`);
     
     return acc;
   }, {});
@@ -385,6 +393,7 @@ const bloque_2 = (
   // Calcular promedios finales por clase
   Object.keys(promedios_por_clase).forEach(claseId => {
     const data = promedios_por_clase[claseId];
+    //console.log(data);
 
     data.promedio = data.tareas_calificadas > 0
       ? (data.total_obtenido + data.tareas_calificadas).toFixed(2)
@@ -402,7 +411,9 @@ const bloque_2 = (
     valor_total_posible: valor_total_posible.toFixed(2),
     promedio_general: promedio_general.toFixed(2),
     porcentaje_completado: porcentaje_completado.toFixed(2),
-    promedios_por_periodo,
+    promedioPeriodoActual,
+    promedioGrado,
+    sumCreditos,
     promedios_por_clase,
     sumas_tareas_parcial,
     bloques: {
@@ -600,11 +611,12 @@ const bloque_2 = (
     // Tasks Value Data
     tasksValueMetadata,
     promedioGeneral: tasksValueMetadata.promedio_general,
-    promediosPorPeriodo: tasksValueMetadata.promedios_por_periodo,
     promediosPorClase: tasksValueMetadata.promedios_por_clase,
     valorObtenido: tasksValueMetadata.valor_total_obtenido,
     sumaTareasParcial: tasksValueMetadata.sumas_tareas_parcial,
-    
+    promedioPeriodoActual: tasksValueMetadata.promedioPeriodoActual,
+    promedioGrado: tasksValueMetadata.promedioGrado,
+    sumCreditos: tasksValueMetadata.sumCreditos,
 
     // Classes data
     clasee,
