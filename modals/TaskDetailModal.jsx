@@ -77,23 +77,29 @@ export default function TaskDetailModal({ visible, task, onClose, onEdit, onDele
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Archivo</Text>
-            
-            <View style={styles.gradeContainer}>
-              <View style={styles.gradeBox}>
-                <InfoRow 
+          <Text style={styles.sectionTitle}>Archivo</Text>
+          
+          <View style={styles.gradeContainer}>
+            <View style={styles.gradeBox}>
+              <InfoRow 
                 icon="document-outline" 
                 label="Tarea Enviada"
-                value={`${task.tarea_doc_titulo || 'Sin Enviar'}`}
+                value={task.tarea_doc_titulo || 'Sin Enviar'}
               />
-                <TouchableOpacity style={{marginTop: 15, alignItems: 'flex-start'}} onPress={() => Linking.openURL(task.tarea_doc_url)}>
-                  <Text style={styles.gradeLabel}>
-                    Ir a Drive
-                  </Text>
+              {task.tarea_doc_url && (
+                <TouchableOpacity 
+                  style={{marginTop: 15, alignItems: 'flex-start'}} 
+                  onPress={() => Linking.openURL(task.tarea_doc_url)}
+                >
+                  <View style={styles.linkButton}>
+                    <Ionicons name="open-outline" size={16} color="#3498db" />
+                    <Text style={styles.linkButtonText}>Ir a Drive</Text>
+                  </View>
                 </TouchableOpacity>
-              </View>
+              )}
             </View>
           </View>
+        </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Calificación</Text>
@@ -164,6 +170,7 @@ const InfoRow = ({ icon, label, value, highlight }) => (
     </View>
   </View>
 );
+
 
 const styles = StyleSheet.create({
   container: {
@@ -295,4 +302,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
   },
+  linkButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 6,
+  paddingVertical: 8,
+  paddingHorizontal: 12,
+  backgroundColor: '#e3f2fd',
+  borderRadius: 8,
+},
+linkButtonText: {
+  fontSize: 14,
+  fontFamily: 'poppins-medium',
+  color: '#3498db',
+},
 });

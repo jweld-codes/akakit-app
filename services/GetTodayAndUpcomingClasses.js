@@ -1,4 +1,4 @@
-import { getClassDocumentCollection } from "../services/GetClassDocumentCollection";
+import { getClassDocumentCollection } from "./GetClassDocumentCollection";
 
 const daysMap = {
   0: "Domingo",

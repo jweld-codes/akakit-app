@@ -92,6 +92,8 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
 
 
   useEffect(() => {
+     console.log('ClassModal recibió classIdModal:', classIdModal);
+    console.log('Tipo de classIdModal:', typeof classIdModal);
     fetchClassData();
   }, [visible, classIdModal]);
   
@@ -532,7 +534,6 @@ const GeneralTab = ({ claseData, periodData, taskData, promedioClase }) => {
     : "No disponible";
 
     const idPeridodoCurso = periodData?.periodo_curso_anio;
-
     const periodosCursoMap = {
       "1": "Primer Año",
       "2": "Segundo Año",
@@ -547,6 +548,14 @@ const GeneralTab = ({ claseData, periodData, taskData, promedioClase }) => {
       "2": "Segundo Periodo",
       "3": "Tercer Periodo",
       "4": "Cuarto Periodo",
+      "5": "Quinto Periodo",
+      "6": "Sexto Periodo",
+      "7": "Séptimo Periodo",
+      "8": "Octavo Periodo",
+      "9": "Noveno Periodo",
+      "10": "Décimo Periodo",
+      "11": "Undécimo Periodo",
+      "12": "Duodécimo Periodo",
     };
     const periodo_clase = periodoClassMap[periodoClass] ?? "No disponible";
     
@@ -587,7 +596,6 @@ const GeneralTab = ({ claseData, periodData, taskData, promedioClase }) => {
     const bloque_2 = (notasPorParcial[3] + notasPorParcial[4]).toFixed(2);
     const nota_final = (parseFloat(bloque_1) + parseFloat(bloque_2)).toFixed(2);
 
-    // Guardar el promedio en Firebase usando el ID del documento de Firestore
     if (idClase) {
       //console.log('Intentando guardar promedio:', nota_final, 'para documento:', claseData.clase_id);
       const resultado = await updateClassGrade(idClase, nota_final);
@@ -608,7 +616,6 @@ const GeneralTab = ({ claseData, periodData, taskData, promedioClase }) => {
     };
   };
 
-  // Usar useEffect para calcular y guardar automáticamente
   const [notas, setNotas] =useState({
     bloque_1: '0.00',
     bloque_2: '0.00',

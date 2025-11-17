@@ -1,38 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, Modal, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Platform, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import colors from '../../constants/colors';
-import global from '../../constants/global';
 import { useOverviewData } from '../../context/OverviewDataContext';
 import ClassModal from '../../modals/ClassModal';
-import { getClassById } from "../../services/GetClassById";
 import { getClassDocumentCollection } from '../../services/GetClassDocumentCollection';
 import { getDocenteById } from "../../services/GetDocenteById";
 import { getPeriodById } from "../../services/GetPeriodById";
+import SearchBar from "../SearchBar";
 
-export default function HistorialClass({onClose}) {
-    const [docentes, setDocentes] = useState({});
-    const [periodo, setPeriodo] = useState({});
-    const [classe, setClase] = useState([]);
-    const [classIdModal, setClassIdModal] = useState('');
-    const [loadingClasses, setLoadingClasses] = useState(true);
-    const [filteredClass, setFilteredClass] = useState([]);
-    const [modalInfoVisible, setModalInfoVisible] = useState(false);
+export default function HistorialClass({ onClose }) {
+  const router = useRouter();
+  
+  const [docentes, setDocentes] = useState({});
+  const [periodo, setPeriodo] = useState({});
+  const [classe, setClase] = useState([]);
+  const [filteredClass, setFilteredClass] = useState([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  
+  const [selectedClass, setselectedClass] = useState(null);
+  const [showClassModal, setShowClassModal] = useState(false);
+  const [modalInfoVisible, setModalInfoVisible] = useState(false);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Todas');
+
+  const {
+    promedioPeriodoActual,
+    promedioGrado,
+    sumCreditos,
+    loading,
+    refreshData,
+    lastUpdate
+  } = useOverviewData();
 
   useEffect(() => {
-    const fectchClase = async () => {
-      setLoadingClasses(true);
+    fetchClases();
+  }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [searchQuery, filterStatus, classe]);
+
+  const fetchClases = async () => {
+    setLoadingClasses(true);
+    try {
       const claseList = await getClassDocumentCollection("idClaseCollection");
       
       const docentesTemp = {};
       const periodoTemp = {};
-      const classIdTemp = {};
 
+      // Obtener información de docentes
       for (const clase of claseList) {
         const docenteId = clase.class_id_docente?.trim?.();
-        if (docenteId) {
+        if (docenteId && !docentesTemp[docenteId]) {
           const docenteData = await getDocenteById(docenteId);
           if (docenteData) {
             docentesTemp[docenteId] = docenteData.docente_fullName;
@@ -40,13 +63,10 @@ export default function HistorialClass({onClose}) {
         }
       }
 
-      const filtered = claseList.filter(classs =>
-        classs.class_estado === "Cursada"
-      );
-
+      // Obtener información de períodos
       for (const clase of claseList) {
         const periodoId = clase.class_period;
-        if (periodoId) {
+        if (periodoId && !periodoTemp[periodoId]) {
           const periodoData = await getPeriodById(periodoId);
           if (periodoData) {
             periodoTemp[periodoId] = periodoData.periodo_id;
@@ -54,310 +74,490 @@ export default function HistorialClass({onClose}) {
         }
       }
 
-      for(const claseid of claseList){
-        const claseIdd = claseid.clase_id;
-        if(claseIdd){
-          const claseIdData = await getClassById(claseIdd);
-          if (claseIdData) {
-            classIdTemp[claseIdd] = claseIdData.clase_id;
-          }
-        }
-      }
-
-
-      setClassIdModal(classIdTemp);
       setClase(claseList);
-      setPeriodo(periodoTemp);
       setDocentes(docentesTemp);
+      setPeriodo(periodoTemp);
       setLoadingClasses(false);
-      setFilteredClass(filtered);
-    };
-    fectchClase();
-  }, []);
+    } catch (error) {
+      console.error('Error al cargar clases:', error);
+      setLoadingClasses(false);
+    }
+  };
 
-  const [selectedClass, setselectedClass] = useState(null);
-  const [showClassModal, setShowClassModal] = useState(false);
+  const applyFilters = () => {
+    let filtered = [...classe];
 
-  const handleSelectedClassModal = (clase) => {
-    setselectedClass(clase);
+    // Filtrar por estado
+    if (filterStatus !== 'Todas') {
+      filtered = filtered.filter(cls => cls.class_enrollment === filterStatus);
+    }
+
+    // Filtrar por búsqueda
+    if (searchQuery.trim() !== '') {
+      filtered = filtered.filter(cls => 
+        cls.class_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        cls.class_codigo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        docentes[cls.class_id_docente]?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    setFilteredClass(filtered);
+  };
+
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+  };
+
+  const handleFilterChange = (status) => {
+    setFilterStatus(status);
+  };
+
+  const handleSelectedClassModal = (claseId) => {
+    setselectedClass(claseId);
     setShowClassModal(true);
   };
 
-    const {
-        promedioPeriodoActual,
-        promedioGrado,
-        sumCreditos,
-        loading,
-        refreshData,
-        lastUpdate
-    } = useOverviewData();
-
-     const [refreshing, setRefreshing] = useState(false);
-      const onRefresh = async () => {
-        setRefreshing(true);
-        await refreshData();
-        setRefreshing(false);
-      };
-    
-      const [loadClass, setloadClass] = useState(true);
-      const loadClassRefresh = async () => {
-        setLoadingClasses(true);
-        const claseList = await getClassDocumentCollection("idClaseCollection");
-        setClase(claseList);
-        setLoadingClasses(false);
-      };
-      const router = useRouter();
-
-      const renderClassItem = ({ item }) => (
-        <TouchableOpacity 
-        style={styles.classItem}
-        onPress={() => handleSelectedClassModal(item.clase_id)}
-        >
-          <View style={styles.classIconContainer}>
-            <Ionicons name="person-circle" size={40} color={colors.color_palette_1.lineArt_Purple} />
-          </View>
-          <View style={styles.classInfo}>
-            <Text style={styles.className}>{item.class_name}</Text>
-            {docentes[item.class_id_docente] && (
-              <Text style={styles.classEmail}>{docentes[item.class_id_docente]}</Text>
-            )}
-            <Text style={styles.classEmail}>{item.class_credit} U.V</Text>
-            <Text style={styles.classEmail}>Periodo {periodo[item.class_period]}</Text>
-            {periodo[item.class_period] && (
-                <>
-                <View style={[global.notSpaceBetweenObjects]}>
-                    <Ionicons name="star" size={15} color={colors.color_palette_1.lineArt_Purple} />
-                    <Text style={styles.classSpecialty}>{item.class_promedio}%</Text>
-                </View>
-                </>
-            )}
-          </View>
-           <ClassModal
-            visible={showClassModal}
-            classIdModal={selectedClass}
-            onClose={() => {
-              setShowClassModal(false);
-              setselectedClass(null);
-            }}
-            
-            />
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
-        </TouchableOpacity>
+  const renderClassItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.classItem}
+      onPress={() => handleSelectedClassModal(item.clase_id)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.classIconContainer}>
+        <View style={[
+          styles.classIconCircle,
+          { backgroundColor: item.class_enrollment === 'En Curso' ? '#e3f2fd' : '#f3e5f5' }
+        ]}>
+          <Ionicons 
+            name={item.class_enrollment === 'En Curso' ? "book" : "checkmark-done"} 
+            size={24} 
+            color={item.class_enrollment === 'En Curso' ? colors.color_palette_1.lineArt_Purple : '#9c27b0'} 
+          />
+        </View>
+      </View>
+      
+      <View style={styles.classInfo}>
+        <Text style={styles.className}>{item.class_name}</Text>
         
-      );
-    
-      if (loading && !lastUpdate) {
-        return (
-          <View style={styles.mainLoadingContainer}>
-            <ActivityIndicator size="large" color={"#780359ff"}/>
-            <Text style={styles.mainLoadingText}>Cargando datos...</Text>
-          </View>
-        );
-      }
-  return (
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaView style={styles.safeArea}>
-          <StatusBar barStyle="dark-content"></StatusBar>
-          <View>
-
-            {/* Header */}
-            <View style={styles.header}>
-                <View style={global.notSpaceBetweenObjects}>
-                    <View >
-                        <TouchableOpacity 
-                        onPress={() => {
-                          if (onClose) {
-                            onClose();
-                          } else {
-                            router.back(); 
-                          }
-                        }} 
-                        style={styles.closeButton}>
-                            <Ionicons name="close" size={24} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                    <View>
-                        <Text style={styles.headerTitle}>Historial de Clases</Text>
-                    </View>
-                </View>
-
-                <View style={[global.notSpaceBetweenObjects, {top:20, marginLeft: 5}]}>
-                   <View>
-                        <TouchableOpacity 
-                        onPress={() => setModalInfoVisible(true)}
-                        style={styles.infoButton}>
-                            <Ionicons name="information-circle-outline" size={24} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <Modal
-                      animationType="fade"
-                      transparent={true}
-                      visible={modalInfoVisible}
-                      style={styles.modalContainer}
-                    >
-                      <View style={styles.centeredView}>
-                        <View style={styles.modalView}>
-                          <Text style={[styles.modalText, {fontSize: 20, fontWeight:'bold'}]}>Datos de Promedio</Text>
-                          <View style={{justifyContent: 'justify'}}>
-                            <Text style={styles.modalText}>{promedioGrado} %: Promedio de Graduación</Text>
-                            <Text style={styles.modalText}>{promedioPeriodoActual} %: Promedio de Último Periodo</Text>
-                            <Text style={styles.modalText}>{sumCreditos} U.V: Creditos Totales</Text>
-                          </View>
-                          
-                          <Button title="Aceptar" onPress={() => setModalInfoVisible(false)} />
-                        </View>
-                      </View>
-                      
-                    </Modal>
-
-                    <View>
-                        <View style={global.aside}>
-                            <View style={styles.averageTabs}>
-                                <Text>{promedioGrado} %</Text>
-                            </View>
-
-                            <View style={styles.averageTabs}>
-                                <Text>{promedioPeriodoActual} %</Text>
-                            </View>
-
-                            <View style={styles.averageTabs}>
-                                <Text>{sumCreditos} UV</Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
+        <View style={styles.classDetails}>
+          {docentes[item.class_id_docente] && (
+            <View style={styles.detailRow}>
+              <Ionicons name="person-outline" size={14} color="#666" />
+              <Text style={styles.classDetailText}>{docentes[item.class_id_docente]}</Text>
             </View>
-
-            <View>
-              {loadingClasses? (
-                <View style={styles.loadingClassesContainer}>
-                  <ActivityIndicator size="large" color="#782170" />
-                  <Text style={styles.loadingClassesText}>Cargando Clases...</Text>
-                </View>
-              ): classe.length === 0 ?(
-                <View style={styles.emptyStateContainer}>
-                  <Ionicons name="school-outline" size={64} color="#ccc" />
-                  <Text style={styles.emptyStateTitle}>No hay clases matriculadas</Text>
-                  <Text style={styles.emptyStateText}>
-                    Aún no tienes clases registradas en este periodo
-                  </Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={classe}
-                  renderItem={renderClassItem}
-                  keyExtractor={(item, index) => item.clase_id?.toString() || index.toString()}
-                  contentContainerStyle={styles.listContent}
-                  showsVerticalScrollIndicator={true}
-                />
-
-              )}
-            </View>
+          )}
+          
+          <View style={styles.detailRow}>
+            <Ionicons name="school-outline" size={14} color="#666" />
+            <Text style={styles.classDetailText}>{item.class_credit} U.V</Text>
           </View>
+          
+          {periodo[item.class_period] && (
+            <View style={styles.detailRow}>
+              <Ionicons name="calendar-outline" size={14} color="#666" />
+              <Text style={styles.classDetailText}>Periodo {periodo[item.class_period]}</Text>
+            </View>
+          )}
+        </View>
 
-        </SafeAreaView>
-      </GestureHandlerRootView>
-    )
+        {item.class_promedio && parseFloat(item.class_promedio) > 0 && (
+          <View style={styles.gradeContainer}>
+            <Ionicons name="star" size={16} color="#ffa726" />
+            <Text style={styles.gradeText}>{item.class_promedio}%</Text>
+          </View>
+        )}
+
+        <View style={[
+          styles.statusBadge,
+          { backgroundColor: item.class_enrollment === 'En Curso' ? '#e3f2fd' : '#f3e5f5' }
+        ]}>
+          <Text style={[
+            styles.statusText,
+            { color: item.class_enrollment === 'En Curso' ? '#1976d2' : '#9c27b0' }
+          ]}>
+            {item.class_enrollment}
+          </Text>
+        </View>
+      </View>
+      
+      <Ionicons name="chevron-forward" size={20} color="#ccc" />
+    </TouchableOpacity>
+  );
+
+  if (loading && !lastUpdate) {
+    return (
+      <View style={styles.mainLoadingContainer}>
+        <ActivityIndicator size="large" color={colors.color_palette_1.lineArt_Purple} />
+        <Text style={styles.mainLoadingText}>Cargando datos...</Text>
+      </View>
+    );
   }
-  
-  const styles = StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: '#fff',
-    },
-    container: {
-      flex: 1,
-      backgroundColor: '#f5f5f5',
-    },
-    header: {
-      backgroundColor: '#fff',
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 30,
-      borderBottomWidth: 1,
-      borderBottomColor: '#f0f0f0',
-    },
-    headerTitle: {
-      fontSize: 28,
-      fontWeight: 'bold',
-      color: '#2c3e50',
-      fontFamily: 'poppins-bold',
-    },
-    headerSubtitle: {
-      fontSize: 14,
-      color: '#999',
-      textTransform: 'capitalize',
-      marginTop: 2,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    calendarContainer: {
-      paddingHorizontal: 15,
-      paddingTop: 20,
-      paddingBottom: 10,
-    },
-    searchContainer: {
-      paddingHorizontal: 15,
-      paddingTop: 15,
-    },
-    eventsListContainer: {
-      paddingHorizontal: 15,
-      paddingTop: 10,
-      paddingBottom: 20,
-    },
 
-    closeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 20,
-    backgroundColor: 'rgba(42, 41, 41, 0.26)',
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (onClose) {
+                  onClose();
+                } else {
+                  router.back(); 
+                }
+              }} 
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+            
+            <Text style={styles.headerTitle}>Historial de Clases</Text>
+            
+            <TouchableOpacity 
+              onPress={() => setModalInfoVisible(true)}
+              style={styles.infoButton}
+            >
+              <Ionicons name="information-circle-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Ionicons name="trophy-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.statValue}>{promedioGrado}%</Text>
+              <Text style={styles.statLabel}>Graduación</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <Ionicons name="trending-up-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.statValue}>{promedioPeriodoActual}%</Text>
+              <Text style={styles.statLabel}>Último Periodo</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <Ionicons name="school-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.statValue}>{sumCreditos}</Text>
+              <Text style={styles.statLabel}>U.V Totales</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Search and Filters */}
+        <View style={styles.searchFilterContainer}>
+          <SearchBar 
+            value={searchQuery}
+            onChangeText={handleSearch}
+            placeholder="Buscar clases, docentes..."
+            style={styles.searchBarStyle}
+          />
+
+          {/* Filter Buttons */}
+          <View style={styles.filterButtons}>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                filterStatus === 'Todas' && styles.filterButtonActive
+              ]}
+              onPress={() => handleFilterChange('Todas')}
+            >
+              <Ionicons 
+                name="apps" 
+                size={16} 
+                color={filterStatus === 'Todas' ? '#fff' : colors.color_palette_1.lineArt_Purple} 
+              />
+              <Text style={[
+                styles.filterButtonText,
+                filterStatus === 'Todas' && styles.filterButtonTextActive
+              ]}>
+                Todas ({classe.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                filterStatus === 'En Curso' && styles.filterButtonActive
+              ]}
+              onPress={() => handleFilterChange('En Curso')}
+            >
+              <Ionicons 
+                name="play-circle" 
+                size={16} 
+                color={filterStatus === 'En Curso' ? '#fff' : colors.color_palette_1.lineArt_Purple} 
+              />
+              <Text style={[
+                styles.filterButtonText,
+                filterStatus === 'En Curso' && styles.filterButtonTextActive
+              ]}>
+                En Curso ({classe.filter(c => c.class_enrollment === 'En Curso').length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                filterStatus === 'Cursada' && styles.filterButtonActive
+              ]}
+              onPress={() => handleFilterChange('Cursada')}
+            >
+              <Ionicons 
+                name="checkmark-circle" 
+                size={16} 
+                color={filterStatus === 'Cursada' ? '#fff' : colors.color_palette_1.lineArt_Purple} 
+              />
+              <Text style={[
+                styles.filterButtonText,
+                filterStatus === 'Cursada' && styles.filterButtonTextActive
+              ]}>
+                Cursada ({classe.filter(c => c.class_enrollment === 'Cursada').length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Class List */}
+        {loadingClasses ? (
+          <View style={styles.loadingClassesContainer}>
+            <ActivityIndicator size="large" color={colors.color_palette_1.lineArt_Purple} />
+            <Text style={styles.loadingClassesText}>Cargando Clases...</Text>
+          </View>
+        ) : filteredClass.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="school-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyStateTitle}>
+              {searchQuery || filterStatus !== 'Todas' 
+                ? 'No se encontraron clases' 
+                : 'No hay clases registradas'}
+            </Text>
+            <Text style={styles.emptyStateText}>
+              {searchQuery 
+                ? `No hay resultados para "${searchQuery}"` 
+                : filterStatus !== 'Todas'
+                ? `No hay clases con estado "${filterStatus}"`
+                : 'Aún no tienes clases registradas'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredClass}
+            renderItem={renderClassItem}
+            keyExtractor={(item, index) => item.clase_id?.toString() || index.toString()}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+        {/* Modals */}
+        <ClassModal
+          visible={showClassModal}
+          classIdModal={selectedClass}
+          onClose={() => {
+            setShowClassModal(false);
+            setselectedClass(null);
+            fetchClases(); // Refrescar después de cerrar
+          }}
+        />
+
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={modalInfoVisible}
+          onRequestClose={() => setModalInfoVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Ionicons name="analytics" size={32} color={colors.color_palette_1.lineArt_Purple} />
+                <Text style={styles.modalTitle}>Resumen Académico</Text>
+              </View>
+
+              <View style={styles.modalBody}>
+                <View style={styles.modalStatRow}>
+                  <Ionicons name="trophy" size={24} color="#ffa726" />
+                  <View style={styles.modalStatInfo}>
+                    <Text style={styles.modalStatLabel}>Promedio de Graduación</Text>
+                    <Text style={styles.modalStatValue}>{promedioGrado}%</Text>
+                  </View>
+                </View>
+
+                <View style={styles.modalStatRow}>
+                  <Ionicons name="trending-up" size={24} color="#66bb6a" />
+                  <View style={styles.modalStatInfo}>
+                    <Text style={styles.modalStatLabel}>Promedio Último Periodo</Text>
+                    <Text style={styles.modalStatValue}>{promedioPeriodoActual}%</Text>
+                  </View>
+                </View>
+
+                <View style={styles.modalStatRow}>
+                  <Ionicons name="school" size={24} color="#42a5f5" />
+                  <View style={styles.modalStatInfo}>
+                    <Text style={styles.modalStatLabel}>Créditos Totales</Text>
+                    <Text style={styles.modalStatValue}>{sumCreditos} U.V</Text>
+                  </View>
+                </View>
+              </View>
+
+              <TouchableOpacity 
+                style={styles.modalButton}
+                onPress={() => setModalInfoVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    </GestureHandlerRootView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  mainLoadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    backgroundColor: '#f8f9fa',
+  },
+  mainLoadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: 'poppins-medium',
+    color: '#666',
   },
 
+  // Header
+  header: {
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: 'poppins-bold',
+    color: '#fff',
+  },
   infoButton: {
-    width: 26,
-    height: 26,
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(99, 30, 90, 0.32)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 5,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontFamily: 'poppins-bold',
+    color: '#fff',
+    marginTop: 4,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontFamily: 'poppins-regular',
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    marginTop: 2,
   },
 
-  averageTabs: {
-    width: 90,
-    height: 30,
-    borderRadius: 20,
-    backgroundColor: 'rgba(173, 9, 137, 0.13)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
+  // Search and Filters
+  searchFilterContainer: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  loadingClassesContainer: {
-    paddingVertical: 80,
+  searchBarStyle: {
+    marginBottom: 12,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterButton: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: colors.color_palette_1.lineArt_Purple,
+    backgroundColor: '#fff',
+  },
+  filterButtonActive: {
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+    borderColor: colors.color_palette_1.lineArt_Purple,
+  },
+  filterButtonText: {
+    fontSize: 12,
+    fontFamily: 'poppins-medium',
+    color: colors.color_palette_1.lineArt_Purple,
+  },
+  filterButtonTextActive: {
+    color: '#fff',
+  },
+
+  // Loading States
+  loadingClassesContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 80,
   },
   loadingClassesText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#782170',
     fontFamily: 'poppins-medium',
+    color: '#666',
   },
   emptyStateContainer: {
-    paddingVertical: 60,
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
   },
   emptyStateTitle: {
     fontFamily: 'poppins-semibold',
     fontSize: 18,
     color: '#666',
     marginTop: 16,
+    textAlign: 'center',
   },
   emptyStateText: {
     fontFamily: 'poppins-regular',
@@ -365,13 +565,13 @@ export default function HistorialClass({onClose}) {
     color: '#999',
     textAlign: 'center',
     marginTop: 8,
-    paddingHorizontal: 40,
+    lineHeight: 20,
   },
 
   // List
   listContent: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: 15,
+    paddingBottom: 30,
   },
   classItem: {
     flexDirection: 'row',
@@ -381,60 +581,126 @@ export default function HistorialClass({onClose}) {
     padding: 15,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
     elevation: 2,
   },
   classIconContainer: {
     marginRight: 15,
   },
+  classIconCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   classInfo: {
     flex: 1,
   },
-className: {
+  className: {
     fontSize: 16,
     fontFamily: 'poppins-semibold',
     color: '#333',
-    marginBottom: 2,
+    marginBottom: 6,
   },
-  classEmail: {
+  classDetails: {
+    gap: 4,
+    marginBottom: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  classDetailText: {
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#666',
+  },
+  gradeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  gradeText: {
+    fontSize: 14,
+    fontFamily: 'poppins-semibold',
+    color: '#ffa726',
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontFamily: 'poppins-semibold',
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 25,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'poppins-bold',
+    color: '#333',
+    marginTop: 10,
+  },
+  modalBody: {
+    gap: 15,
+    marginBottom: 20,
+  },
+  modalStatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 12,
+    gap: 15,
+  },
+  modalStatInfo: {
+    flex: 1,
+  },
+  modalStatLabel: {
     fontSize: 13,
     fontFamily: 'poppins-regular',
     color: '#666',
     marginBottom: 2,
   },
-  classSpecialty: {
-    fontSize: 12,
-    left:5,
-    fontFamily: 'poppins-regular',
-    color: '#999',
+  modalStatValue: {
+    fontSize: 20,
+    fontFamily: 'poppins-bold',
+    color: '#333',
   },
-
-  //Mdoal
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
+  modalButton: {
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+    borderRadius: 12,
+    padding: 15,
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)', // Translucent background for the modal overlay
   },
-  modalView: {
-    margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+  modalButtonText: {
+    fontSize: 16,
+    fontFamily: 'poppins-semibold',
+    color: '#fff',
   },
-  modalText: {
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  });
+});

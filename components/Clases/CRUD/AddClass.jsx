@@ -1,4 +1,4 @@
-// components/Clases/AddClass.jsx - VERSIÓN COMPLETA CORREGIDA
+// components/Clases/AddClass.jsx - CON FUNCIONALIDAD DE FLUJOGRAMA
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
@@ -8,6 +8,7 @@ import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpac
 import { db } from "../../../config/firebaseConfig";
 import colors from "../../../constants/colors";
 import global from "../../../constants/global";
+import ClassSearchModal from "../../../modals/ClassSearchModal"; // NUEVO MODAL
 import TeacherSearchModal from "../../../modals/TeacherSearchModal";
 
 export default function AddClass() {
@@ -34,6 +35,15 @@ export default function AddClass() {
   const [showTeacherSearch, setShowTeacherSearch] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // NUEVOS ESTADOS PARA FLUJOGRAMA
+  const [flowchartId, setFlowchartId] = useState(1);
+  const [flowchartClasses, setFlowchartClasses] = useState([]);
+  const [selectedPrerequisite, setSelectedPrerequisite] = useState(null); // Clase que se requiere
+  const [selectedOpensClass, setSelectedOpensClass] = useState(null); // Clase que abre
+  const [showPrerequisiteSearch, setShowPrerequisiteSearch] = useState(false);
+  const [showOpensClassSearch, setShowOpensClassSearch] = useState(false);
+  const [addToFlowchart, setAddToFlowchart] = useState(true); // Toggle para agregar al flujograma
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -44,6 +54,18 @@ export default function AddClass() {
           setClassId(lastClass.clase_id + 1);
         }
 
+        const qFlowchart = query(
+          collection(db, "idFlujogramaClases"), 
+          orderBy("fc_id", "desc"), 
+          limit(1)
+        );
+        const snapshotFlowchart = await getDocs(qFlowchart);
+        if (!snapshotFlowchart.empty) {
+          const lastFlowchart = snapshotFlowchart.docs[0].data();
+          setFlowchartId(parseInt(lastFlowchart.fc_id) + 1);
+        }
+
+        // Obtener docentes
         const docentesSnapshot = await getDocs(collection(db, "idDocentesCollection"));
         const docentesList = docentesSnapshot.docs.map(doc => {
           const data = doc.data();
@@ -56,8 +78,15 @@ export default function AddClass() {
             ...data
           };
         });
-        
         setDocentes(docentesList);
+
+        // Obtener clases del flujograma
+        const flowchartSnapshot = await getDocs(collection(db, "idFlujogramaClases"));
+        const flowchartList = flowchartSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setFlowchartClasses(flowchartList);
         
         setLoading(false);
       } catch (error) {
@@ -98,11 +127,37 @@ export default function AddClass() {
         createdAt: new Date(),
       });
 
-      Alert.alert("✅ Clase agregada", "La clase fue guardada correctamente");
+      if (addToFlowchart) {
+        const flowchartData = {
+          fc_id: flowchartId.toString(),
+          fc_name: claseName,
+          fc_codigo: classCodigo,
+          fc_creditos: classCredit,
+          fc_type: classType || "General",
+          fc_periodo: classPeriod || "N/A",
+          fc_anio: classYear || "N/A",
+          fc_enrollment: classEnrollment,
+          fc_promedio: classEnrollment === "Cursada" ? 0 : 0,
+          fc_status: "Activo",
+          fc_open_class_id: selectedPrerequisite?.fc_id || "", // Clase prerequisito
+          fc_open_class_name: selectedPrerequisite?.fc_name || "",
+          fc_opened_id_by: selectedOpensClass?.fc_id || "", // Clase que abrió esta
+          createdAt: new Date(),
+        };
+
+        await addDoc(collection(db, "idFlujogramaClases"), flowchartData);
+      }
+
+      Alert.alert(
+        "Clase agregada", 
+        addToFlowchart 
+          ? "La clase fue guardada correctamente en el flujograma" 
+          : "La clase fue guardada correctamente"
+      );
       resetForm();
       router.back();
     } catch (error) {
-      console.error("❌ Error al guardar la clase:", error);
+      console.error("Error al guardar la clase:", error);
       Alert.alert("Error", "No se pudo guardar la clase");
     }
   };
@@ -122,10 +177,22 @@ export default function AddClass() {
     setClassUrl("");
     setClassNotasPersonales("");
     setClassEnrollment("En Curso");
+    setSelectedPrerequisite(null);
+    setSelectedOpensClass(null);
   };
 
   const handleSelectTeacher = (teacher) => {
     setClassIdDocente(teacher.docente_id);
+  };
+
+  const handleSelectPrerequisite = (classItem) => {
+    setSelectedPrerequisite(classItem);
+    setShowPrerequisiteSearch(false);
+  };
+
+  const handleSelectOpensClass = (classItem) => {
+    setSelectedOpensClass(classItem);
+    setShowOpensClassSearch(false);
   };
 
   const handleOpenSearch = () => {
@@ -143,6 +210,30 @@ export default function AddClass() {
     setShowTeacherSearch(true);
   };
 
+  const handleOpenPrerequisiteSearch = () => {
+    if (flowchartClasses.length === 0) {
+      Alert.alert(
+        'Sin clases',
+        'No hay clases registradas en el flujograma aún.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    setShowPrerequisiteSearch(true);
+  };
+
+  const handleOpenOpensClassSearch = () => {
+    if (flowchartClasses.length === 0) {
+      Alert.alert(
+        'Sin clases',
+        'No hay clases registradas en el flujograma aún.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    setShowOpensClassSearch(true);
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -156,11 +247,29 @@ export default function AddClass() {
       {/* Teacher Search Modal */}
       <TeacherSearchModal
         visible={showTeacherSearch}
-        onClose={() => {
-          setShowTeacherSearch(false);
-        }}
+        onClose={() => setShowTeacherSearch(false)}
         teachers={docentes}
         onSelectTeacher={handleSelectTeacher}
+      />
+
+      {/* Prerequisite Class Search Modal */}
+      <ClassSearchModal
+        visible={showPrerequisiteSearch}
+        onClose={() => setShowPrerequisiteSearch(false)}
+        classes={flowchartClasses}
+        onSelectClass={handleSelectPrerequisite}
+        title="Seleccionar Prerequisito"
+        subtitle="Clase que se requiere para cursar esta"
+      />
+
+      {/* Opens Class Search Modal */}
+      <ClassSearchModal
+        visible={showOpensClassSearch}
+        onClose={() => setShowOpensClassSearch(false)}
+        classes={flowchartClasses}
+        onSelectClass={handleSelectOpensClass}
+        title="Seleccionar Clase que Abre"
+        subtitle="Clase que habilitó esta clase"
       />
 
       {/* Header Fixed */}
@@ -174,6 +283,9 @@ export default function AddClass() {
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Nueva Clase</Text>
           <Text style={styles.headerSubtitle}>ID de la clase: #{classId}</Text>
+          {addToFlowchart && (
+            <Text style={styles.headerSubtitle}>ID Flujograma: #{flowchartId}</Text>
+          )}
         </View>
       </View>
 
@@ -425,6 +537,168 @@ export default function AddClass() {
           </View>
         </View>
 
+        {/* NUEVA SECCIÓN: FLUJOGRAMA */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="git-network" size={24} color={colors.color_palette_1.lineArt_Purple} />
+            <Text style={styles.sectionTitle}>Flujograma de Curso</Text>
+          </View>
+
+          {/* Toggle para agregar al flujograma */}
+          <TouchableOpacity
+            style={styles.flowchartToggle}
+            onPress={() => setAddToFlowchart(!addToFlowchart)}
+          >
+            <View style={styles.flowchartToggleLeft}>
+              <Ionicons 
+                name={addToFlowchart ? "checkbox" : "square-outline"} 
+                size={24} 
+                color={addToFlowchart ? colors.color_palette_1.lineArt_Purple : "#999"} 
+              />
+              <View style={styles.flowchartToggleText}>
+                <Text style={styles.flowchartToggleTitle}>
+                  Agregar al flujograma
+                </Text>
+                <Text style={styles.flowchartToggleSubtitle}>
+                  Registrar dependencias entre clases
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {addToFlowchart && (
+            <>
+              {/* Prerequisito */}
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Prerequisito (Clase requerida)</Text>
+                  <TouchableOpacity 
+                    onPress={handleOpenPrerequisiteSearch}
+                    style={styles.searchIconButton}
+                  >
+                    <Ionicons name="search" size={20} color={colors.color_palette_1.lineArt_Purple} />
+                  </TouchableOpacity>
+                </View>
+                
+                {selectedPrerequisite ? (
+                  <View style={styles.selectedClassCard}>
+                    <View style={styles.selectedClassInfo}>
+                      <Text style={styles.selectedClassCode}>
+                        {selectedPrerequisite.fc_codigo}
+                      </Text>
+                      <Text style={styles.selectedClassName}>
+                        {selectedPrerequisite.fc_name}
+                      </Text>
+                      <Text style={styles.selectedClassMeta}>
+                        {selectedPrerequisite.fc_creditos} UV • {selectedPrerequisite.fc_type}
+                      </Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => setSelectedPrerequisite(null)}
+                      style={styles.removeButton}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#e91e63" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity 
+                    style={styles.emptySelection}
+                    onPress={handleOpenPrerequisiteSearch}
+                  >
+                    <Ionicons name="lock-closed-outline" size={24} color="#999" />
+                    <Text style={styles.emptySelectionText}>
+                      Sin prerequisito
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <Text style={styles.helperText}>
+                  Clase que el estudiante debe aprobar antes de cursar esta
+                </Text>
+              </View>
+
+              {/* Clase que abre */}
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Abierta por (Clase que habilitó esta)</Text>
+                  <TouchableOpacity 
+                    onPress={handleOpenOpensClassSearch}
+                    style={styles.searchIconButton}
+                  >
+                    <Ionicons name="search" size={20} color={colors.color_palette_1.lineArt_Purple} />
+                  </TouchableOpacity>
+                </View>
+                
+                {selectedOpensClass ? (
+                  <View style={styles.selectedClassCard}>
+                    <View style={styles.selectedClassInfo}>
+                      <Text style={styles.selectedClassCode}>
+                        {selectedOpensClass.fc_codigo}
+                      </Text>
+                      <Text style={styles.selectedClassName}>
+                        {selectedOpensClass.fc_name}
+                      </Text>
+                      <Text style={styles.selectedClassMeta}>
+                        {selectedOpensClass.fc_creditos} UV • {selectedOpensClass.fc_type}
+                      </Text>
+                    </View>
+                    <TouchableOpacity 
+                      onPress={() => setSelectedOpensClass(null)}
+                      style={styles.removeButton}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#e91e63" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity 
+                    style={styles.emptySelection}
+                    onPress={handleOpenOpensClassSearch}
+                  >
+                    <Ionicons name="key-outline" size={24} color="#999" />
+                    <Text style={styles.emptySelectionText}>
+                      No fue abierta por otra clase
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <Text style={styles.helperText}>
+                  Clase que al ser aprobada habilitó esta clase
+                </Text>
+              </View>
+
+              {/* Info visual de dependencias */}
+              {(selectedPrerequisite || selectedOpensClass) && (
+                <View style={styles.dependencyVisualization}>
+                  <View style={styles.dependencyHeader}>
+                    <Ionicons name="information-circle" size={20} color={colors.color_palette_1.lineArt_Purple} />
+                    <Text style={styles.dependencyHeaderText}>Resumen de dependencias</Text>
+                  </View>
+                  
+                  {selectedOpensClass && (
+                    <View style={styles.dependencyItem}>
+                      <Ionicons name="arrow-down" size={16} color="#4caf50" />
+                      <Text style={styles.dependencyText}>
+                        <Text style={styles.dependencyBold}>{selectedOpensClass.fc_name}</Text>
+                        {" → abre → "}
+                        <Text style={styles.dependencyBold}>{claseName || "Esta clase"}</Text>
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {selectedPrerequisite && (
+                    <View style={styles.dependencyItem}>
+                      <Ionicons name="lock-closed" size={16} color="#e91e63" />
+                      <Text style={styles.dependencyText}>
+                        <Text style={styles.dependencyBold}>{claseName || "Esta clase"}</Text>
+                        {" requiere → "}
+                        <Text style={styles.dependencyBold}>{selectedPrerequisite.fc_name}</Text>
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </>
+          )}
+        </View>
+
         {/* Docente */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -609,6 +883,13 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
   },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  searchButton: {
+    padding: 4,
+  },
   addButton: {
     padding: 4,
   },
@@ -631,6 +912,15 @@ const styles = StyleSheet.create({
     color: '#555',
     marginBottom: 8,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  searchIconButton: {
+    padding: 4,
+  },
   input: {
     borderWidth: 1.5,
     borderColor: '#e0e0e0',
@@ -644,6 +934,13 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     paddingTop: 15,
+  },
+  helperText: {
+    fontSize: 12,
+    fontFamily: 'poppins-regular',
+    color: '#999',
+    marginTop: 6,
+    lineHeight: 16,
   },
 
   // Modality Buttons
@@ -705,6 +1002,133 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
+  // Flowchart Section
+  flowchartToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  flowchartToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  flowchartToggleText: {
+    flex: 1,
+  },
+  flowchartToggleTitle: {
+    fontSize: 15,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+  },
+  flowchartToggleSubtitle: {
+    fontSize: 12,
+    fontFamily: 'poppins-regular',
+    color: '#666',
+    marginTop: 2,
+  },
+
+  // Selected Class Card
+  selectedClassCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 15,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.color_palette_1.lineArt_Purple,
+  },
+  selectedClassInfo: {
+    flex: 1,
+  },
+  selectedClassCode: {
+    fontSize: 13,
+    fontFamily: 'poppins-semibold',
+    color: '#666',
+    marginBottom: 4,
+  },
+  selectedClassName: {
+    fontSize: 16,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  selectedClassMeta: {
+    fontSize: 12,
+    fontFamily: 'poppins-regular',
+    color: '#999',
+  },
+  removeButton: {
+    padding: 4,
+    marginLeft: 12,
+  },
+
+  // Empty Selection
+  emptySelection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: 20,
+    backgroundColor: '#fafafa',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+  },
+  emptySelectionText: {
+    fontSize: 14,
+    fontFamily: 'poppins-medium',
+    color: '#999',
+  },
+
+  // Dependency Visualization
+  dependencyVisualization: {
+    backgroundColor: '#f0f4ff',
+    borderRadius: 12,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#d0d9ff',
+    marginTop: 10,
+  },
+  dependencyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  dependencyHeaderText: {
+    fontSize: 14,
+    fontFamily: 'poppins-semibold',
+    color: colors.color_palette_1.lineArt_Purple,
+  },
+  dependencyItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 8,
+    paddingLeft: 10,
+  },
+  dependencyText: {
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#555',
+    flex: 1,
+    lineHeight: 18,
+  },
+  dependencyBold: {
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+  },
+
   // Picker
   pickerWrapper: {
     borderWidth: 2,
@@ -713,12 +1137,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     height: 70,
   },
-
   picker: {
     bottom: 75,
   },
-  
-   pickerItem: {
+  pickerItem: {
     color: '#530344ff',
     backgroundColor: '#f0f0f0ff',
     fontSize: 16,

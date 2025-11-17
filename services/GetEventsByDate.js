@@ -2,10 +2,6 @@
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../config/firebaseConfig";
 
-/**
- * Obtiene todos los eventos de un día específico
- * @param {Date} date - Fecha a consultar
- */
 export const getEventsByDate = async (date) => {
   try {
     // Crear inicio y fin del día
@@ -41,7 +37,7 @@ export const getEventsByDate = async (date) => {
 };
 
 /**
- * Formatea la hora del evento
+ * Formatear la hora del evento
  */
 export const formatEventTime = (date) => {
   if (!date) return "";

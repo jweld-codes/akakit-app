@@ -433,6 +433,7 @@ const bloque_2 = (
     const finished = classList.filter(
       clase => clase.class_enrollment === "Cursada"
     ).length;
+    //console.log(finished);
     
     const total = classList.length;
     const remaining = 58 - total;

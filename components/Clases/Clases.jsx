@@ -1,6 +1,5 @@
 // components/Clases/Clases.jsx
 import { Ionicons } from "@expo/vector-icons";
-import { Link } from 'expo-router';
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -19,7 +18,6 @@ import container from '../../constants/container';
 import global from '../../constants/global';
 import sectionheader from '../../constants/ios/sectionheader';
 import { useOverviewData } from '../../context/OverviewDataContext';
-import { getClassById } from "../../services/GetClassById";
 import { getClassDocumentCollection } from "../../services/GetClassDocumentCollection";
 import { getDocenteById } from "../../services/GetDocenteById";
 import { getPeriodById } from "../../services/GetPeriodById";
@@ -30,56 +28,66 @@ export default function Clases({onModalPress}) {
   const [docentes, setDocentes] = useState({});
   const [periodo, setPeriodo] = useState({});
   const [classe, setClase] = useState([]);
+  const [completedClass, setCompletedClass] = useState([]);
   const [classIdModal, setClassIdModal] = useState('');
   const [loadingClasses, setLoadingClasses] = useState(true);
 
   useEffect(() => {
-    const fetchClase = async () => {
-      setLoadingClasses(true);
+  const fetchClase = async () => {
+    setLoadingClasses(true);
+    
+    try {
       const claseList = await getClassDocumentCollection("idClaseCollection");
+      
+      const clasesEnCurso = claseList.filter(
+        clase => clase.class_enrollment === "En Curso"
+      );
       
       const docentesTemp = {};
       const periodoTemp = {};
-      const classIdTemp = {};
 
-      for (const clase of claseList) {
-        const docenteId = clase.class_id_docente?.trim?.();
-        if (docenteId) {
-          const docenteData = await getDocenteById(docenteId);
-          if (docenteData) {
-            docentesTemp[docenteId] = docenteData.docente_fullName;
-          }
+      const docenteIds = new Set();
+      const periodoIds = new Set();
+
+      clasesEnCurso.forEach(clase => {
+        if (clase.class_id_docente?.trim()) {
+          docenteIds.add(clase.class_id_docente.trim());
+        }
+        if (clase.class_period) {
+          periodoIds.add(clase.class_period);
+        }
+      });
+
+      // Cargar docentes
+      for (const docenteId of docenteIds) {
+        const docenteData = await getDocenteById(docenteId);
+        if (docenteData) {
+          docentesTemp[docenteId] = docenteData.docente_fullName;
         }
       }
 
-      for (const clase of claseList) {
-        const periodoId = clase.class_period;
-        if (periodoId) {
-          const periodoData = await getPeriodById(periodoId);
-          if (periodoData) {
-            periodoTemp[periodoId] = periodoData.periodo_id;
-          }
+      // Cargar períodos
+      for (const periodoId of periodoIds) {
+        const periodoData = await getPeriodById(periodoId);
+        if (periodoData) {
+          periodoTemp[periodoId] = periodoData.periodo_id;
         }
       }
 
-      for(const claseid of claseList){
-        const claseIdd = claseid.clase_id;
-        if(claseIdd){
-          const claseIdData = await getClassById(claseIdd);
-          if (claseIdData) {
-            classIdTemp[claseIdd] = claseIdData.clase_id;
-          }
-        }
-      }
-
-      setClassIdModal(classIdTemp);
-      setClase(claseList);
+      setClase(clasesEnCurso);
+      setCompletedClass(clasesEnCurso);
       setPeriodo(periodoTemp);
       setDocentes(docentesTemp);
+      
+    } catch (error) {
+      console.error('Error al cargar clases:', error);
+    } finally {
       setLoadingClasses(false);
-    };
-    fetchClase();
-  }, []);
+    }
+  };
+  
+  fetchClase();
+}, []);
 
   const handleModalIdValue = (claseData) => {
     const classId = claseData.clase_id;
@@ -194,10 +202,24 @@ export default function Clases({onModalPress}) {
 
   const [loadClass, setloadClass] = useState(true);
   const loadClassRefresh = async () => {
-    setLoadingClasses(true);
+  setLoadingClasses(true);
+  const claseList = await getClassDocumentCollection("idClaseCollection");
+  const clasesEnCurso = claseList.filter(
+    clase => clase.class_enrollment === "En Curso"
+  );
+  setClase(clasesEnCurso);
+  setCompletedClass(clasesEnCurso);
+  setLoadingClasses(false);
+};
+
+  const [clasesFinalizadas, setClasesFinalizadas] = useState([]);
+
+  const fetchClasesFinalizadas = async () => {
     const claseList = await getClassDocumentCollection("idClaseCollection");
-    setClase(claseList);
-    setLoadingClasses(false);
+    const finalizadas = claseList.filter(
+      clase => clase.class_enrollment === "Cursada"
+    );
+    setClasesFinalizadas(finalizadas);
   };
 
   if (loading && !lastUpdate) {
@@ -233,32 +255,29 @@ export default function Clases({onModalPress}) {
                 Clases Matrículadas
               </Text>
             </View>
-            <Link href="/QADir/Clases/SeeAllClasesScreen" style={sectionheader.linkButton}>
-              <Text style={styles.linkText}>Ver Todas</Text>
-            </Link>
+           <View style={styles.countBadge}>
+              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+              <Text style={styles.countText}>
+                {classe.length} {classe.length === 1 ? 'En Curso' : 'En Curso'}
+              </Text>
+              </View>
           </View>
 
           {!loadingClasses && classe.length > 0 && (
             <>
             <View style={global.aside}>
-              <View style={styles.countBadge}>
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-              <Text style={styles.countText}>
-                {classe.length} {classe.length === 1 ? 'Activo' : 'Inactivo'}
-              </Text>
+              <View style={styles.sectionContainer}>
             </View>
-
-            <View  style={global.notSpaceBetweenObjects}>
-              <TouchableOpacity 
-                onPress={loadClassRefresh}
-                style={styles.refreshButton}
-              >
-                <Ionicons name="refresh" size={20} color="#782170" />
-              </TouchableOpacity>
-              <Text>Refrescar</Text>
+              <View  style={global.notSpaceBetweenObjects}>
+                <TouchableOpacity 
+                  onPress={loadClassRefresh}
+                  style={styles.refreshButton}
+                >
+                  <Ionicons name="refresh" size={20} color="#782170" />
+                </TouchableOpacity>
+                <Text>Refrescar</Text>
+              </View>
             </View>
-            </View>
-            
             </>
           )}
         </View>
@@ -378,7 +397,7 @@ export default function Clases({onModalPress}) {
                       </View>
                     )}
 
-                    {/* Botón de acción mejorado */}
+                    {/* Botón de acción */}
                     <TouchableOpacity 
                       onPress={() => handleModalIdValue(clase)} 
                       style={[styles.actionButton, {backgroundColor: header}]}
@@ -395,9 +414,9 @@ export default function Clases({onModalPress}) {
             })}
           </ScrollView>
         )}
+        <View style={{marginBottom:12, backgroundColor: '#fff'}}></View>
 
       </View>
-        <View style={{marginBottom:12, backgroundColor: '#fff'}}></View>
 
 
     </ScrollView>
