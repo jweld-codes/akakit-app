@@ -1,6 +1,9 @@
 // components/Settings/Settings.jsx
 import { USER_METADATA } from "@/constants/metadata/user_data";
 import { Ionicons } from '@expo/vector-icons';
+import axios from "axios";
+import * as Clipboard from 'expo-clipboard';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -16,9 +19,10 @@ import {
 } from 'react-native';
 import colors from '../../constants/colors';
 
-export default function Settings() {
+export default function Ajustes() {
   const router = useRouter();
   const user = USER_METADATA[0];
+  const [copiedAccountNumberText, setCopiedAccountNumberText] = useState('');
 
   // Estados de configuración
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -64,6 +68,48 @@ export default function Settings() {
     );
   };
 
+  const copyToClipboard = async () => {
+    await Clipboard.setStringAsync('hello world');
+  };
+
+  const fetchCopiedText = async () => {
+    const text = await Clipboard.getStringAsync();
+    setCopiedAccountNumberText(text);
+  };
+
+  const sendEmailNotification = async () => {
+   try {
+    const response = await axios.post(
+      "https://api.resend.com/emails",
+      {
+        from: "Acme <onboarding@resend.dev>",
+        to: user.email,
+        subject: "Notificación de Akakit",
+        text: "Hola, esta es una notificación enviada desde la app."
+      },
+      {
+        headers: {
+          Authorization: `re_ep6iQ9qu_8ULX31hgUWP2YnanXSKa4rnf`, // tu API KEY de Resend
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    console.log("Email enviado:", response.data);
+    } catch (error) {
+      console.log("Error enviando email:", error.response?.data || error);
+    }
+  };
+
+  const openWhatsApp = () => {
+    const phone = "+50433606023"; // ← Coloca el número real
+    const url = `https://wa.me/${phone}`;
+
+    Linking.openURL(url);
+  };
+
+
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -80,7 +126,7 @@ export default function Settings() {
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
               {user.avatar ? (
-                <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                <Image source={require("../../assets/images/avatars/1739031396143.png")} style={styles.avatar} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   <Ionicons name="person" size={40} color="#fff" />
@@ -95,13 +141,14 @@ export default function Settings() {
             </View>
           </View>
           
+          {/* Perfil del Usuario 
           <TouchableOpacity 
             style={styles.editProfileButton}
-            onPress={() => {/* TODO: Abrir edición de perfil */}}
+            onPress={() => }
           >
             <Ionicons name="create-outline" size={18} color={colors.color_palette_1.lineArt_Purple} />
             <Text style={styles.editProfileText}>Editar Perfil</Text>
-          </TouchableOpacity>
+          </TouchableOpacity>*/}
         </View>
 
         {/* Cuenta */}
@@ -112,7 +159,7 @@ export default function Settings() {
             icon="card-outline"
             title="Número de Cuenta"
             subtitle={user.accountNumber}
-            onPress={() => {}}
+            onPress={copyToClipboard}
             showArrow={false}
           />
           
@@ -133,7 +180,7 @@ export default function Settings() {
             icon="notifications-outline"
             title="Configuración de Notificaciones"
             subtitle="Gestionar alertas y recordatorios"
-            onPress={() => router.push('/notifications-settings')}
+            onPress={() => router.push("/(extras)/notificaciones")}
           />
           
           <SettingToggle
@@ -151,7 +198,10 @@ export default function Settings() {
                 title="Notificaciones por Email"
                 subtitle="Recibir recordatorios por correo"
                 value={emailNotifications}
-                onValueChange={setEmailNotifications}
+                onValueChange={(value) => {
+                  setEmailNotifications(value);
+                  if (value) sendEmailNotification();
+                }}
               />
               
               <SettingToggle
@@ -248,26 +298,27 @@ export default function Settings() {
           />
         </View>
 
-        {/* Soporte 
+        {/* Soporte */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Soporte</Text>
-          
           <SettingItem
-            icon="help-circle-outline"
-            title="Centro de Ayuda"
-            subtitle="Preguntas frecuentes"
+            icon="chatbubble-outline"
+            title="Consultas"
+            subtitle="Hablar con Consultas USAP por WhatsApp"
+            onPress={openWhatsApp}
           />
           
           <SettingItem
             icon="chatbubble-outline"
-            title="Contactar Soporte"
-            subtitle="Enviar mensaje al equipo"
+            title="Mildred"
+            subtitle="Hablar con Mildred por WhatsApp"
+            onPress={openWhatsApp}
           />
-          
+
           <SettingItem
-            icon="bug-outline"
-            title="Reportar un Problema"
-            subtitle="Ayúdanos a mejorar"
+            icon="help-circle-outline"
+            title="Lista de Contactos"
+            subtitle="Todos los contactos necesarios."
           />
         </View>
 
@@ -294,7 +345,7 @@ export default function Settings() {
             title="Política de Privacidad"
             subtitle="Cómo protegemos tus datos"
           />
-        </View> */}
+        </View> 
 
         {/* Acciones Peligrosas */}
         <View style={styles.section}>

@@ -11,21 +11,28 @@ const daysMap = {
 };
 
 const parseTimeStringToDate = (timeString) => {
-  const [time, modifier] = timeString.trim().split(" ");
+  if (!timeString) return null;
+
+  const clean = timeString.trim().toLowerCase().replace(/\./g, "");
+
+  const parts = clean.split(/\s+/);
+
+  if (parts.length === 1) {
+    const [hours, minutes] = parts[0].split(":").map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  }
+
+  const [time, modifier] = parts;
+
   let [hours, minutes] = time.split(":").map(Number);
 
-  if (modifier.toLowerCase().includes("p") && hours !== 12) {
-    hours += 12;
-  }
-  if (modifier.toLowerCase().includes("a") && hours === 12) {
-    hours = 0;
-  }
+  if (modifier === "pm" && hours !== 12) hours += 12;
+  if (modifier === "am" && hours === 12) hours = 0;
 
   const date = new Date();
-  date.setHours(hours);
-  date.setMinutes(minutes);
-  date.setSeconds(0);
-  date.setMilliseconds(0);
+  date.setHours(hours, minutes, 0, 0);
 
   return date;
 };

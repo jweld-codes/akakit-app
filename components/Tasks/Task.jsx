@@ -201,10 +201,6 @@ export default function Task() {
       );
     }
 
-    if (selectedClass !== 'Todas') {
-      filtered = filtered.filter(task => task.class_id?.toString() === selectedClass?.toString());
-    }
-
     if (selectedStatus !== 'Todas') {
       const statusMap = {
         'Completada': 'Completado',
@@ -559,16 +555,6 @@ const renderTaskCardGrid = ({ item }) => {
                     </TouchableOpacity>
                   </View>
                 )}
-                {selectedClass !== 'Todas' && (
-                  <View style={styles.activeFilterChip}>
-                    <Text style={styles.activeFilterText}>
-                      {classes.find(c => c.id?.toString() === selectedClass?.toString())?.name}
-                    </Text>
-                    <TouchableOpacity onPress={() => setSelectedClass('Todas')}>
-                      <Ionicons name="close-circle" size={16} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                )}
                 {selectedStatus !== 'Todas' && (
                   <View style={styles.activeFilterChip}>
                     <Text style={styles.activeFilterText}>{selectedStatus}</Text>
@@ -658,43 +644,6 @@ const renderTaskCardGrid = ({ item }) => {
             </View>
 
             <ScrollView style={styles.modalBody}>
-              <View style={styles.filterSection}>
-                <Text style={styles.filterSectionTitle}>Por Clase</Text>
-                <View style={styles.filterOptions}>
-                  <TouchableOpacity
-                    style={[
-                      styles.filterOption,
-                      selectedClass === 'Todas' && styles.filterOptionActive
-                    ]}
-                    onPress={() => setSelectedClass('Todas')}
-                  >
-                    <Text style={[
-                      styles.filterOptionText,
-                      selectedClass === 'Todas' && styles.filterOptionTextActive
-                    ]}>
-                      Todas
-                    </Text>
-                  </TouchableOpacity>
-                  {classes.map(cls => (
-                    <TouchableOpacity
-                      key={cls.id}
-                      style={[
-                        styles.filterOption,
-                        selectedClass?.toString() === cls.id?.toString() && styles.filterOptionActive
-                      ]}
-                      onPress={() => setSelectedClass(cls.id?.toString())}
-                    >
-                      <Text style={[
-                        styles.filterOptionText,
-                        selectedClass?.toString() === cls.id?.toString() && styles.filterOptionTextActive
-                      ]}>
-                        {cls.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
               <View style={styles.filterSection}>
                 <Text style={styles.filterSectionTitle}>Por Estado</Text>
                 <View style={styles.filterOptions}>

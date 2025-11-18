@@ -11,13 +11,13 @@ const REDIRECT_ROUTE_HISTORIAL_CLASS = '/QADir/Clases/HistorialClassScreen';
 const REDIRECT_ROUTE_COURSE = '/(tabs)/curso'; 
 
 export default function AppIndex() {
+  //return <Redirect href={REDIRECT_ROUTE_ONBOARDING} />;
+  return <Redirect href={REDIRECT_ROUTE_DASHBOARD} />;
+  //return <Redirect href={REDIRECT_ROUTE_CLASS} />;
   //return <Redirect href={REDIRECT_ROUTE_ADDCLASS} />;
   //return <Redirect href={REDIRECT_ROUTE_HISTORIAL_CLASS} />;
-  //return <Redirect href={REDIRECT_ROUTE_DASHBOARD} />;
   //return <Redirect href={REDIRECT_ROUTE_COURSE} />;
   //return <Redirect href={REDIRECT_ROUTE_CLASS_MODAL} />;
-  return <Redirect href={REDIRECT_ROUTE_CLASS} />;
   //return <Redirect href={REDIRECT_ROUTE_ADDPROFESSOR} />;
-  //return <Redirect href={REDIRECT_ROUTE_ONBOARDING} />;
   //return <Redirect href={REDIRECT_ROUTE_ALL_CLASS_MODAL} />;
 }

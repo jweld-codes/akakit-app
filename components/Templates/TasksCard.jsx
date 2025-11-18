@@ -14,11 +14,11 @@ export default function TasksCard({ task, onRemove }) {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
 
+
   const handleTaskPress = (task) => {
     setSelectedTask(task);
     setShowTaskModal(true);
   };
-
   
   // Editar tarea
   const handleEdit = (task) => {

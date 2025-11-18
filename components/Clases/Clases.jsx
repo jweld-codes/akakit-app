@@ -200,7 +200,6 @@ export default function Clases({onModalPress}) {
     setRefreshing(false);
   };
 
-  const [loadClass, setloadClass] = useState(true);
   const loadClassRefresh = async () => {
   setLoadingClasses(true);
   const claseList = await getClassDocumentCollection("idClaseCollection");
@@ -211,16 +210,6 @@ export default function Clases({onModalPress}) {
   setCompletedClass(clasesEnCurso);
   setLoadingClasses(false);
 };
-
-  const [clasesFinalizadas, setClasesFinalizadas] = useState([]);
-
-  const fetchClasesFinalizadas = async () => {
-    const claseList = await getClassDocumentCollection("idClaseCollection");
-    const finalizadas = claseList.filter(
-      clase => clase.class_enrollment === "Cursada"
-    );
-    setClasesFinalizadas(finalizadas);
-  };
 
   if (loading && !lastUpdate) {
     return (

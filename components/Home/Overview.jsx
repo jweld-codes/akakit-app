@@ -1,9 +1,13 @@
 import container from '@/constants/container';
+import global from '@/constants/global';
+import useNotifications from '@/hooks/useNotifications';
+import { getNextClassDate } from "@/services/ParseClassToDate";
 import { Ionicons } from "@expo/vector-icons";
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   RefreshControl,
   ScrollView,
@@ -14,8 +18,6 @@ import {
   View
 } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
-
-import global from '@/constants/global';
 import { useOverviewData } from '../../context/OverviewDataContext';
 import { getClassesData } from "../../services/GetTodayAndUpcomingClasses";
 import { getUpcomingEvents } from '../../services/GetUpcomingEvents';
@@ -34,9 +36,15 @@ export default function Overview() {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
 
+  const {
+    checkPermissions,
+    sendTestNotification,
+    scheduleAllClassNotifications,
+  } = useNotifications();
+
   useEffect(() => {
     const fetchData = async () => {
-      const { todayClasses, upcomingClass, ongoingClass } = await getClassesData();
+      const {todayClasses, upcomingClass, ongoingClass } = await getClassesData();
       setTodayClasses(todayClasses);
       setUpcomingClass(upcomingClass);
       setOngoingClass(ongoingClass);
@@ -50,6 +58,72 @@ export default function Overview() {
     setUpcomingEvents(refreshDataEvents);
     setLoadingEvents(false);
   };
+
+  const getStartTimeFromClass = (c) => {
+  // intenta campos comunes; añade los que uses en tu BD
+  const candidates = [
+    c.class_hours,
+    c.class_days,
+  ];
+
+  for (const v of candidates) {
+    if (!v) continue;
+    // si es objeto Date
+    if (v instanceof Date) return v;
+    // si es número unix (segundos o ms)
+    if (typeof v === 'number') {
+      // si parecen segundos (<= 1e10) convierto a ms
+      const candidateMs = v > 1e12 ? v : v * 1000;
+      return new Date(candidateMs);
+    }
+    // string: intenta parsear como ISO
+    const parsed = new Date(v);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return null;
+};
+
+// Botón prueba
+const handleSendTest = async () => {
+  const granted = await checkPermissions();
+  if (!granted) {
+    Alert.alert('Permisos', 'No se obtuvieron permisos para notificaciones.');
+    return;
+  }
+  await sendTestNotification();
+  Alert.alert('Enviado', 'Notificación de prueba enviada (si el dispositivo la permite).');
+};
+
+// Programar recordatorios de "En Curso"
+const handleScheduleEnCurso = async () => {
+  const granted = await checkPermissions();
+  if (!granted) {
+    Alert.alert("Permisos", "No se obtuvieron permisos para notificaciones.");
+    return;
+  }
+
+  const classes = todayClasses;
+
+  const toSchedule = classes
+    .filter(c => c.class_enrollment === "En Curso")
+    .map(c => {
+      const nextDate = getNextClassDate(c.class_days, c.class_hours);
+      if (!nextDate) return null;
+
+      return {
+        id: c.clase_id,
+        title: c.class_name,
+        startTime: nextDate.toISOString(),
+      };
+    })
+    .filter(Boolean);
+
+  const count = await scheduleAllClassNotifications(toSchedule);
+
+  Alert.alert("Programadas", `${count} recordatorios configurados.`);
+};
+
+
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -95,6 +169,8 @@ export default function Overview() {
       </View>
     );
   }
+
+  //await NotificationService.sendTestNotification();
 
   return (
     <View style={container.container}>
@@ -259,6 +335,12 @@ export default function Overview() {
               <Ionicons name="stats-chart" size={24} color="#782170" />
               <Text style={styles.sectionTitle}>Resumen de Tareas</Text>
             </View>
+            <Link href="/QADir/Stats/StatisticsScreen" asChild>
+              <TouchableOpacity style={styles.seeAllButton}>
+                <Text style={styles.seeAllText}>Ver Todas</Text>
+                <Ionicons name="chevron-forward" size={16} color="#782170" />
+              </TouchableOpacity>
+            </Link>
           </View>
 
           <View style={styles.statsCard}>

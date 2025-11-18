@@ -23,6 +23,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
   const [classUrl, setClassUrl] = useState(classData?.class_url_access || "");
   const [classEstado, setClassEstado] = useState(classData?.class_estado || "");
   const [classYear, setClassYear] = useState(classData?.class_year || "");
+  const [classPromedio, setClassPromedio] = useState(classData?.class_promedio || 0);
 
   const [docentesName, setDocenteName] = useState(docenteData?.docente_fullName || "");
   const [docentesId, setDocenteId] = useState(docenteData?.docente_id || "");
@@ -60,6 +61,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
     setClassUrl(classData.class_url_access || '');
     setClassEstado(classData.class_estado || '');
     setClassYear(classData.class_year || '');
+    setClassPromedio(classData.class_promedio || 0);
 
     setDocenteName(docenteData?.docente_fullName || '');
     setDocenteId(docenteData?.docente_id || '');
@@ -175,6 +177,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
                 fc_open_class_id: "",
                 fc_open_class_name: "",
                 fc_opened_id_by: "",
+                fc_promedio: classPromedio,
                 createdAt: Timestamp.now(),
               };
 
@@ -330,6 +333,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
         class_url_access: classUrl,
         class_estado: classEstado,
         class_year: classYear,
+        class_promedio: classPromedio,
         updatedAt: Timestamp.now(),
       });
 
@@ -352,6 +356,7 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
             fc_anio: classYear || "N/A",
             fc_enrollment: classEnrollment,
             fc_status: classEstado,
+            fc_promedio: classPromedio,
             fc_open_class_id: selectedPrerequisite?.fc_id || "",
             fc_open_class_name: selectedPrerequisite?.fc_name || "",
             fc_opened_id_by: selectedOpensClass?.fc_id || "",
@@ -585,10 +590,21 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
                     <Picker.Item label="Seleccionar" value="" />
                     <Picker.Item label="En Curso" value="En Curso" />
                     <Picker.Item label="Cursada" value="Cursada" />
-                    <Picker.Item label="Matriculada" value="Matriculada" />
                   </Picker>
                 </View>
               </View>
+
+              <View style={styles.halfInput}>
+                <Text style={styles.label}>Promedio FInal</Text>
+                  <TextInput
+                    value={classPromedio}
+                    onChangeText={setClassPromedio}
+                    placeholder="100%"
+                    style={styles.input}
+                    placeholderTextColor="#aaa"
+                    keyboardType="numeric"
+                  />
+                </View>
             </View>
 
             {/* SECCIÓN FLUJOGRAMA */}

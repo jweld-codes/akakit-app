@@ -15,7 +15,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "usesAppleSignIn": false,
       "supportsTablet": true,
+      "bundleIdentifier": "com.tuapp.akakit",
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"

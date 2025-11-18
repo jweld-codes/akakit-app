@@ -1,4 +1,6 @@
 // components/Clases/AddClass.jsx - CON FUNCIONALIDAD DE FLUJOGRAMA
+import NotificationService from "@/services/NotificationService";
+import { getNextClassDate } from "@/services/ParseClassToDate";
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
@@ -14,7 +16,7 @@ import TeacherSearchModal from "../../../modals/TeacherSearchModal";
 export default function AddClass() {
   const router = useRouter();
   
-  const [classId, setClassId] = useState(1);
+  const [classId, setClassId] = useState("");
   const [classCodigo, setClassCodigo] = useState("");
   const [classPeriod, setClassPeriod] = useState("");
   const [classYear, setClassYear] = useState("");
@@ -36,7 +38,7 @@ export default function AddClass() {
   const [loading, setLoading] = useState(true);
 
   // NUEVOS ESTADOS PARA FLUJOGRAMA
-  const [flowchartId, setFlowchartId] = useState(1);
+  const [flowchartId, setFlowchartId] = useState("");
   const [flowchartClasses, setFlowchartClasses] = useState([]);
   const [selectedPrerequisite, setSelectedPrerequisite] = useState(null); // Clase que se requiere
   const [selectedOpensClass, setSelectedOpensClass] = useState(null); // Clase que abre
@@ -99,6 +101,7 @@ export default function AddClass() {
     fetchData();
   }, []);
 
+  
   const handleAddClass = async () => {
     if (!claseName || !classCodigo || !classCredit || !claseModality || !claseFecha || !classHorario) {
       Alert.alert("Error", "Por favor completa todos los campos obligatorios (*)");
@@ -144,18 +147,28 @@ export default function AddClass() {
           fc_opened_id_by: selectedOpensClass?.fc_id || "", // Clase que abrió esta
           createdAt: new Date(),
         };
-
+               
         await addDoc(collection(db, "idFlujogramaClases"), flowchartData);
+      }
+
+      const nextDate = getNextClassDate(claseFecha, classHorario);
+      if (nextDate) {
+        await NotificationService.scheduleClassReminder({
+          id: classId,
+          title: claseName,
+          startTime: nextDate.toISOString(),
+        });
       }
 
       Alert.alert(
         "Clase agregada", 
-        addToFlowchart 
+        addToFlowchart
           ? "La clase fue guardada correctamente en el flujograma" 
           : "La clase fue guardada correctamente"
       );
+      
       resetForm();
-      router.back();
+      //router.back();
     } catch (error) {
       console.error("Error al guardar la clase:", error);
       Alert.alert("Error", "No se pudo guardar la clase");
@@ -282,10 +295,6 @@ export default function AddClass() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Nueva Clase</Text>
-          <Text style={styles.headerSubtitle}>ID de la clase: #{classId}</Text>
-          {addToFlowchart && (
-            <Text style={styles.headerSubtitle}>ID Flujograma: #{flowchartId}</Text>
-          )}
         </View>
       </View>
 
@@ -389,6 +398,7 @@ export default function AddClass() {
                 onChangeText={setClassFecha}
                 placeholderTextColor="#999"
               />
+
             </View>
 
             <View style={styles.inputGroupHalf}>

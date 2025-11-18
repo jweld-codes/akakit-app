@@ -1,4 +1,5 @@
 // components/Home/AddTask.jsx
+import useNotifications from "@/hooks/useNotifications";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from "@react-native-picker/picker";
@@ -11,6 +12,10 @@ import colors from "../../../constants/colors";
 import ios_utils_screen from '../../../constants/ios/ios_utils_screen';
 
 export default function AddTask({onClose}) {
+  const { scheduleTaskNotification } = useNotifications();
+  const [tareaPrioridad, setTareaPrioridad] = useState("medium");
+
+
   const [tareaId, setTareaId] = useState(1);
   const [tareaClaseId, setTareaClaseId] = useState(0);
 
@@ -126,10 +131,19 @@ export default function AddTask({onClose}) {
         tarea_valor_final: tareaValorFinal || 0,
         createdAt: Timestamp.now(),
       });
+      
+      await scheduleTaskNotification({
+        id: tareaId,
+        title: tareaTitulo,
+        dueDate: tareaFechaEntrega,
+        priority: tareaPrioridad,
+      });
+
 
       Alert.alert("Tarea agregada", "La tarea fue guardado correctamente");
       
       resetForm();
+
     } catch (error) {
       console.error("Error al guardar la tarea:", error);
       Alert.alert("Error", "No se pudo guardar la tarea");
@@ -347,6 +361,26 @@ export default function AddTask({onClose}) {
               )}
             </View>
           </View>
+
+          <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="alert-circle-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
+            <Text style={styles.sectionTitle}>Prioridad</Text>
+          </View>
+
+          <View style={styles.pickerWrapperClass}>
+            <Picker
+              style={styles.picker}
+              selectedValue={tareaPrioridad}
+              onValueChange={setTareaPrioridad}
+              itemStyle={styles.pickerItem}
+            >
+              <Picker.Item label="Alta" value="high" />
+              <Picker.Item label="Media" value="medium" />
+              <Picker.Item label="Baja" value="low" />
+            </Picker>
+          </View>
+        </View>
 
           {/* Detalles Académicos Section */}
           <View style={styles.section}>
@@ -661,6 +695,7 @@ const styles = StyleSheet.create({
     fontFamily: 'poppins-medium',
     color: '#333',
   },
+  
   pickerContainer: {
     marginTop: 12,
     backgroundColor: '#f5f5f5',

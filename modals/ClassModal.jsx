@@ -92,8 +92,8 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
 
 
   useEffect(() => {
-     console.log('ClassModal recibió classIdModal:', classIdModal);
-    console.log('Tipo de classIdModal:', typeof classIdModal);
+     //console.log('ClassModal recibió classIdModal:', classIdModal);
+    //console.log('Tipo de classIdModal:', typeof classIdModal);
     fetchClassData();
   }, [visible, classIdModal]);
   

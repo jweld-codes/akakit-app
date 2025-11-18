@@ -12,6 +12,7 @@ import { getClassDocumentCollection } from '../../services/GetClassDocumentColle
 import { getPeriodById } from "../../services/GetPeriodById";
 import { getRequiredClass } from "../../services/GetRequiredClass";
 
+
 export default function CourseFlowchart({ onClose }) {
   const router = useRouter();
   
@@ -21,6 +22,7 @@ export default function CourseFlowchart({ onClose }) {
   const [periods, setPeriods] = useState({});
   const [requiredClass, setRequiredClass] = useState({});
   const [loading, setLoading] = useState(true);
+  const [docentes, setDocentes] = useState({});
   
   // Filtros
   const [selectedPeriod, setSelectedPeriod] = useState('Todos');
@@ -33,7 +35,8 @@ export default function CourseFlowchart({ onClose }) {
   const [showRequiredModal, setShowRequiredModal] = useState(false);
   const [showClassModal, setShowClassModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
+  const [loadingClasses, setLoadingClasses] = useState(true);
   const [selectedClassFind, setSelectedClassFind] = useState(null);
   
   // Modal de clase
@@ -130,37 +133,28 @@ useEffect(() => {
       const periodsTemp = {};
       const requiredClassTemp = {};
       const nombreClassTemp = {};
+      const docentesTemp = {};
 
-      const classesMap = {};
+     
+
+      const classNameToIdMap = {};
       classFetchId.forEach(cls => {
-        classesMap[cls.clase_id] = {
-          id: cls.clase_id,
-          name: cls.class_name,
-          type: cls.class_type
-        };
-      });
-
-      const enrichedFlujo = classList.map(fgc => {
-        const matchingClass = classFetchId.find(
-          cls => cls.class_name === fgc.fc_name || cls.clase_id === fgc.fc_id
-        );
-
-        // console.log("matchingClass: ", matchingClass)
-
-        return {
-          ...fgc, 
-          id: fgc.id,
-          fc_id: fgc.fc_id,
-          clase_id: matchingClass?.clase_id || fgc.fc_id, 
+        if (cls.class_name) {
+          classNameToIdMap[cls.class_name] = cls.clase_id;
         }
       });
 
-      // Guardar el enrichedFlujo en lugar de classList
+      // Enriquecer con clase_id correcto
+      const enrichedFlujo = classList.map(flujoClass => {
+        const matchingClass = classNameToIdMap[flujoClass.fc_name];
+        return {
+          ...flujoClass,
+          clase_id: matchingClass || flujoClass.fc_id,
+        };
+      });
       setSelectedClassFind(enrichedFlujo);
 
-      // Obtener clases requerida y períodos
       for (const clase of classList) {
-
         const requiredClassId = clase.fc_open_class_id?.trim?.();
         //console.log('requiredIDClass: ', requiredClassId);
         if (requiredClassId && !requiredClassTemp[requiredClassId]) {
@@ -205,6 +199,7 @@ useEffect(() => {
       setPeriods(periodsTemp);
       setRequiredClass(requiredClassTemp)
       setLoading(false);
+      setDocentes(docentesTemp);
     } catch (error) {
       console.error('Error al cargar datos:', error);
       setLoading(false);
@@ -216,6 +211,7 @@ useEffect(() => {
   useEffect(() => {
     applyFilters();
   }, [searchQuery, selectedPeriod, selectedYear, selectedEnroll,selectedClassType, selectedStatus, classes]);
+
 
   const applyFilters = () => {
     let filtered = [...classes];
@@ -303,17 +299,22 @@ useEffect(() => {
     }
   };
 
-  const handleClassPress = (classId) => {
-  const classFetchFind = selectedClassFind.find(cls => cls.clase_id === classId);
-  const flujoFetchFind = classes.find(cls => cls.fc_id === classId);
-  if (classFetchFind || flujoFetchFind ) {
-    // Usar clase_id si existe, si no fc_id
-    const idToPass = classFetchFind.clase_id || flujoFetchFind.fc_id;
-    console.log('handleClassPress - ID a pasar:', idToPass);
-    setSelectedClassFind(idToPass);
-    setShowClassModal(true);
+  const [loadClass, setloadClass] = useState(true);
+  const loadClassRefresh = async () => {
+    setLoading(true);
+    const claseList = await getClassDocumentCollection("idFlujogramaClases");
+    setClasses(claseList);
+    setLoading(false);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.color_palette_1.lineArt_Purple} />
+        <Text style={styles.loadingText}>Cargando cursos...</Text>
+      </View>
+    );
   }
-};
 
   //rendiraciones
 
@@ -324,50 +325,82 @@ useEffect(() => {
 
     return (
       <TouchableOpacity
-      key={item.fc_id}
-      style={[
-        styles.classNode,
-        {borderLeftColor: color, borderLeftWidth: 4 }
-      ]}
+      key={item.clase_id}
       onPress={() => {
-        // Usar clase_id si existe, si no fc_id
         const idToPass = item.clase_id || item.fc_id;
-        console.log('Abriendo modal con ID:', idToPass);
         setSelectedClassFind(idToPass);
         setShowClassModal(true);
       }} 
       activeOpacity={0.7}
     >
-        <View style={styles.classNodeHeader}>
-          <View style={styles.classNodeTitle}>
-            <Text style={styles.classCode}>{item.fc_codigo}</Text>
-            {isCompleted && (
-              <View style={styles.completedBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#4caf50" />
+      {!isCompleted ? (
+          <>
+          <View style={[
+            styles.classNode,
+            {borderLeftColor: "#000", borderLeftWidth: 4 }
+          ]}>
+             <View style={[styles.classNodeHeader, {color: "#999"}]}>
+              <View style={styles.classNodeTitle}>
+                <Text style={styles.classCode}>{item.fc_codigo}</Text>
               </View>
-            )}
-          </View>
-          <Text style={styles.classCredits}>{item.fc_creditos} UV</Text>
-        </View>
-
-        <Text style={styles.className} numberOfLines={2}>
-          {item.fc_name}
-        </Text>
-
-        <View style={styles.classFooter}>
-          <View style={[styles.classTypeBadge, { backgroundColor: color + '20' }]}>
-            <Text style={[styles.classTypeText, { color: color }]}>
-              {item.fc_type || 'General'}
-            </Text>
-          </View>
-
-          {grade > 0 && (
-            <View style={styles.gradeContainer}>
-              <Ionicons name="star" size={14} color="#ffa726" />
-              <Text style={styles.gradeText}>{grade}%</Text>
+              <Text style={styles.classCredits}>{item.fc_creditos} UV</Text>
             </View>
-          )}
-        </View>
+
+            <Text style={[styles.className, {color: "#999"}]} numberOfLines={2}>
+              {item.fc_name}
+            </Text>
+
+            <View style={styles.classFooter}>
+              <View style={[styles.classTypeBadge, { backgroundColor: "#b3b2b265" }]}>
+                <Text style={[styles.classTypeText, { color: "#999" }]}>
+                  {item.fc_type || 'General'}
+                </Text>
+              </View>
+            </View>
+          </View>
+           
+          </>
+        ) : (
+          <>
+          <View style={[
+            styles.classNode,
+            {borderLeftColor: color, borderLeftWidth: 4 }
+          ]}>
+            <View style={styles.classNodeHeader}>
+              <View style={styles.classNodeTitle}>
+                <Text style={styles.classCode}>{item.fc_codigo}</Text>
+                {isCompleted && (
+                  <View style={styles.completedBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4caf50" />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.classCredits}>{item.fc_creditos} UV</Text>
+            </View>
+
+            <Text style={styles.className} numberOfLines={2}>
+              {item.fc_name}
+            </Text>
+
+            <View style={styles.classFooter}>
+              <View style={[styles.classTypeBadge, { backgroundColor: color + '20' }]}>
+                <Text style={[styles.classTypeText, { color: color }]}>
+                  {item.fc_type || 'General'}
+                </Text>
+              </View>
+
+              {grade > 0 && (
+                <View style={styles.gradeContainer}>
+                  <Ionicons name="star" size={14} color="#ffa726" />
+                  <Text style={styles.gradeText}>{grade}%</Text>
+                </View>
+              )}
+            </View>
+
+          </View>
+            
+          </>
+        )}
 
         {/* Prerequisite indicator */}
         {item.fc_open_class_id && (
@@ -441,12 +474,13 @@ useEffect(() => {
     fechaInicio = "Sin fecha de Inicio";
     fechaFinal = "Sin fecha Final";
   }
-
-    
-
    
     return (
+      
+
       <View key={periodKey} style={styles.periodSection}>
+        
+
         <View style={styles.periodHeader}>
           <View style={styles.periodTitleContainer}>
             <Ionicons name="calendar" size={24} color={colors.color_palette_1.lineArt_Purple} />
@@ -491,17 +525,6 @@ useEffect(() => {
       </View>
     );
   };
-
-
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.color_palette_1.lineArt_Purple} />
-        <Text style={styles.loadingText}>Cargando cursos...</Text>
-      </View>
-    );
-  }
 
   const organizedClasses = organizeByPeriod();
 
@@ -637,6 +660,20 @@ useEffect(() => {
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
+            <View style={global.aside}>
+              <View style={styles.sectionContainer}>
+            </View>
+              <View  style={global.notSpaceBetweenObjects}>
+                <TouchableOpacity 
+                  onPress={loadClassRefresh}
+                  style={styles.refreshButton}
+                >
+                  <Ionicons name="refresh" size={20} color="#782170" />
+                </TouchableOpacity>
+                <Text>Refrescar</Text>
+              </View>
+            </View>
+        
             {Object.entries(organizedClasses).map(([periodKey, classList]) =>
               renderPeriodSection(periodKey, classList)
             )}
@@ -1027,6 +1064,9 @@ useEffect(() => {
 }
 
 const styles = StyleSheet.create({
+  refreshButton: {
+    padding: 4,
+  },
   safeArea: {
     flex: 1,
     backgroundColor: '#f8f9fa',
@@ -1219,6 +1259,7 @@ const styles = StyleSheet.create({
   },
   classNode: {
     backgroundColor: '#fff',
+    borderLeftColor: "#000",
     borderRadius: 12,
     padding: 15,
     shadowColor: '#000',

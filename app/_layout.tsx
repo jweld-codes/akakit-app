@@ -4,12 +4,12 @@ import { SplashScreen, Stack } from "expo-router";
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { OverviewDataProvider } from '../context/OverviewDataContext';
-import useNotifications from '../hooks/useNotifications';
+import NotificationService from '../services/NotificationService';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const { expoPushToken, notification } = useNotifications();
+  //const { expoPushToken, notification, refreshNotifications } = useNotifications();
   const fontReference = '../assets/fonts';
 
   const [fontsLoaded, error] = useFonts({
@@ -23,6 +23,20 @@ export default function RootLayout() {
     "poppins-extrabold": require('../assets/fonts/Poppins/Poppins-ExtraBold.ttf'),
   });
 
+  useEffect(() => {
+    async function prepare() {
+      const granted = await NotificationService.requestPermissions();
+      if (granted) {
+        await NotificationService.getExpoPushToken();
+      }
+    }
+    prepare();
+
+    return () => {
+      NotificationService.removeNotificationListeners();
+    };
+  }, []);
+
   // Manejar carga de fuentes
   useEffect(() => {
     if (error) throw error;
@@ -30,21 +44,6 @@ export default function RootLayout() {
   }, [fontsLoaded, error]);
 
   // Manejar token de notificaciones
-  useEffect(() => {
-    if (expoPushToken) {
-      //console.log('Push Token registrado:', expoPushToken);
-      // Aquí podrías guardar el token en tu backend/Firestore si lo necesitas
-      // Por ejemplo: savePushTokenToFirestore(expoPushToken);
-    }
-  }, [expoPushToken]);
-
-  // Manejar notificación recibida
-  useEffect(() => {
-    if (notification) {
-     // console.log('Nueva notificación:', notification);
-      // Aquí podrías mostrar un banner o actualizar un badge
-    }
-  }, [notification]);
 
   // No renderizar hasta que las fuentes estén cargadas
   if (!fontsLoaded && !error) {

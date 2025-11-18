@@ -2,8 +2,7 @@ import colors from "@/constants/colors";
 import { USER_METADATA } from "@/constants/metadata/user_data";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link } from "expo-router";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 export default function Header() {
   const user = USER_METADATA[0];
@@ -21,21 +20,7 @@ export default function Header() {
       {/* Top bar with icons */}
       <View style={styles.topBar}>
         <View style={styles.iconContainer}>
-          <Link href="/(extras)/settings" asChild>
-            <TouchableOpacity style={styles.menuItem}>
-              <View style={styles.iconWrapper}>
-                <Ionicons name="settings-outline" size={22} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          </Link>
-
-          <Link href="/(extras)/notificaciones" asChild>
-            <TouchableOpacity style={styles.menuItem}>
-              <View style={styles.iconWrapper}>
-                <Ionicons name="notifications-outline" size={22} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          </Link>
+          
         </View>
       </View>
       
@@ -71,7 +56,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.color_palette_1.lineArt_Purple,
     width: 'auto',
-    height: 210,
+    height: 180,
     position: 'relative',
     overflow: 'hidden',
     shadowColor: "#000",

@@ -3,18 +3,16 @@ import colors from '@/constants/colors';
 import NotificationService from '@/services/NotificationService';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export default function NotificationSettings() {
@@ -30,8 +28,8 @@ export default function NotificationSettings() {
   const [pushNotifications, setPushNotifications] = useState(true);
   
   // Tiempos de recordatorio
-  const [classReminderTime, setClassReminderTime] = useState(60); 
-  const [taskReminderTime, setTaskReminderTime] = useState(24); 
+  const [classReminderTime, setClassReminderTime] = useState(60); // minutos antes
+  const [taskReminderTime, setTaskReminderTime] = useState(24); // horas antes
   
   // Estadísticas
   const [scheduledCount, setScheduledCount] = useState(0);
@@ -91,7 +89,7 @@ export default function NotificationSettings() {
         'Para recibir notificaciones, debes habilitar los permisos en la configuración de tu dispositivo.',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Configuración', onPress: () => router.push("/(tabs)/ajustes") }
+          { text: 'Configuración', onPress: () => {/* Abrir settings del sistema */} }
         ]
       );
     }
@@ -107,6 +105,7 @@ export default function NotificationSettings() {
     await saveSettings({ notificationsEnabled: value });
     
     if (!value) {
+      // Si se desactivan, cancelar todas las notificaciones
       await NotificationService.cancelAllNotifications();
       setScheduledCount(0);
       Alert.alert(
@@ -131,7 +130,7 @@ export default function NotificationSettings() {
     await saveSettings({ dailySummary: value });
     
     if (value) {
-      await NotificationService.scheduleDailySummary(7, 0); 
+      await NotificationService.scheduleDailySummary(7, 0); // 7:00 AM
       Alert.alert('Resumen diario activado', 'Recibirás un resumen todos los días a las 7:00 AM');
     }
   };
@@ -144,7 +143,7 @@ export default function NotificationSettings() {
     
     await NotificationService.sendTestNotification();
     Alert.alert(
-      'Notificación enviada',
+      '✅ Notificación enviada',
       'Si no la ves, verifica los permisos de notificaciones en tu dispositivo'
     );
   };
@@ -197,11 +196,6 @@ export default function NotificationSettings() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Notificaciones</Text>
-      </View>
-
       {/* Estado de permisos */}
       {!permissionsGranted && (
         <View style={styles.warningBanner}>
@@ -424,32 +418,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
   },
-
-  // Header
-    header: {
-      backgroundColor: colors.color_palette_1.lineArt_Purple,
-      paddingTop: Platform.OS === 'ios' ? 60 : 40,
-      paddingBottom: 20,
-      paddingHorizontal: 20,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      bottom: 20,
-      elevation: 4,
-    },
-    headerTitle: {
-      fontSize: 28,
-      fontFamily: 'poppins-bold',
-      color: '#fff',
-    },
 
   // Warning Banner
   warningBanner: {

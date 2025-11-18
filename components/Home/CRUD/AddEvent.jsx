@@ -1,4 +1,5 @@
 // components/Eventos/AddEvent.jsx
+import NotificationService from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from "@react-native-picker/picker";
@@ -8,7 +9,7 @@ import { useEffect, useState } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { db } from "../../../config/firebaseConfig";
 import colors from "../../../constants/colors";
-import { scheduleMultipleReminders } from '../../../services/NotificationService';
+
 
 export default function AddEvent() {
   const router = useRouter();
@@ -111,7 +112,7 @@ export default function AddEvent() {
         evento_fecha_date: eventoFecha,
       };
 
-      await scheduleMultipleReminders(eventoConId, 'event', [24 * 60, 60, 20]);
+      await NotificationService.scheduleMultipleReminders(eventoConId, "event", [60, 20]);
 
       Alert.alert("✅ Evento creado", "El evento fue guardado exitosamente con recordatorios");
       resetForm();
