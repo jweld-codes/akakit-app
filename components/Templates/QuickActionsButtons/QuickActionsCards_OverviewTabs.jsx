@@ -10,38 +10,37 @@ import {
 } from "react-native";
 
 import colors from '../../../constants/colors';
-import sectionheader from '../../../constants/ios/sectionheader';
 
 const { width } = Dimensions.get("window");
   const QUICK_ACTIONS = [
     {
       icon: "add-circle-outline",
-      label: "Create \nAn Event",
+      label: "Crea Un \nNuevo Evento",
       route: "/QADir/Eventos/AddEventScreen",
       color: colors.color_palette_1.lineArt_Purple,
-      gradient: [colors.color_palette_2.pink_darker, "#2E7D32"],
+      gradient: [colors.color_palette_2.pink_darker, "#7d2e5dff"],
     },
 
     {
       icon: "calendar-outline",
-      label: "Calendar\nView",
+      label: "Vista del \nCalendario",
       route: "/(tabs)/calendario",
       color: "#1976D2",
       gradient: ["#2196F3", colors.color_palette_2.lineArt_Blue],
     },
     {
       icon: "time-outline",
-      label: "Course\nFlow Chart",
-      route: "",
+      label: "Flujograma\nDe la Carrera",
+      route: "/(tabs)/curso",
       color: "#C2185B",
-      gradient: ["#E91E63", colors.color_palette_1.lineArt_Purple],
+      gradient: ["#cb1ee9ff", colors.color_palette_1.lineArt_Purple],
     },
     {
       icon: "add-circle-outline",
-      label: "Create\nA Task",
+      label: "Crea Una\nNueva Tarea",
       route: "/QADir/Tareas/AddTaskScreen",
       color: "#E64A19",
-      gradient: [colors.color_palette_1.orange_darker, "#E64A19"],
+      gradient: ["#E64A19", colors.color_palette_1.orange_darker],
     },
   ];
 
@@ -50,18 +49,6 @@ const router = useRouter();
 
   return (
    <View>
-    
-      <View style={sectionheader.headerRow}>
-        <View style={sectionheader.headerrow_twotexts_onelink}>
-          <Ionicons name="checkmark-done-circle-outline" size={28} color="black" />
-          <Text style={{
-            fontFamily: 'poppins-semibold',
-            fontSize: 16,
-            color: colors.color_palette_4.lineArt_grey
-          }}>Quick Actions</Text>
-        </View>
-      </View>
-
       <View style={styles.content}>
         <View style={styles.quickActionsContainer}>
           <View style={styles.quickActionsGrid}>

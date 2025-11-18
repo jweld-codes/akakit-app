@@ -1,5 +1,6 @@
 // components/Clases/ClassModal.jsx
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,22 +16,26 @@ import {
   View
 } from 'react-native';
 import UpdateClass from '../components/Clases/CRUD/UpdateClass';
+
 import TaskAccordion from '../components/Tasks/TaskAccordion';
 import colors from '../constants/colors';
 
 import global from '../constants/global';
 import { useOverviewData } from '../context/OverviewDataContext';
 import { getClassById } from '../services/GetClassById';
-import { getCursoById } from '../services/GetCursoById';
 import { getDocenteById } from '../services/GetDocenteById';
+import { getPeriodById } from '../services/GetPeriodById';
 import { getTaskByClassId } from '../services/GetTareaByClassId';
+import { updateClassGrade } from '../services/UpdateClassGrade';
 
 const { width } = Dimensions.get("window");
 
-const ClassModal = ({ visible, classIdModal, onClose }) => {
+const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
+  const router = useRouter();
+  
   const [claseData, setClaseData] = useState(null);
   const [docenteData, setDocenteData] = useState(null);
-  const [cursoData, setCursoData] = useState(null);
+  const [periodData, setPeriodData] = useState(null);
   const [taskData, setTaskData] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -40,12 +45,16 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [classToEdit, setClassToEdit] = useState(null);
   const [docenteToEdit, setDocenteToEdit] = useState(null);
-  
-  const { tasksValueMetadata, refreshData: refreshOverviewData } = useOverviewData();
+  const [periodToEdit, setPeriodToEdit] = useState(null);
+  //const [showAddTask, setShowAddTask] = useState(false);
+
+  const {tasksValueMetadata, refreshData: refreshOverviewData } = useOverviewData();
   const promedioClase = tasksValueMetadata.promedios_por_clase[classIdModal] ?? 0;
-
-
-  const fetchClassData = useCallback(async (showLoadingIndicator = true) => {
+  //const sumaTareasParcial = tasksValueMetadata.suma_tarea_parcial ?? 0;
+  
+    
+    
+    const fetchClassData = useCallback(async (showLoadingIndicator = true) => {
     if (!visible || !classIdModal) return;
 
     if (showLoadingIndicator) {
@@ -62,10 +71,10 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
         setDocenteData(teacherInfo);
       }
 
-      // Obtener datos del curso
-      if (classInfo?.class_id_curso) {
-        const cursoInfo = await getCursoById(classInfo.class_id_curso);
-        setCursoData(cursoInfo);
+      // Obtener datos del periodo
+      if (classInfo?.class_period) {
+        const periodInfo = await getPeriodById(classInfo.class_period);
+        setPeriodData(periodInfo);
       }
 
       if (classInfo?.clase_id) {
@@ -73,7 +82,6 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
         setTaskData(taskInfo || []);
       }
 
-      //console.log('Datos de clase actualizados');
     } catch (error) {
       console.error('Error cargando datos del modal:', error);
     } finally {
@@ -82,7 +90,10 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
     }
   }, [visible, classIdModal]);
 
+
   useEffect(() => {
+     //console.log('ClassModal recibió classIdModal:', classIdModal);
+    //console.log('Tipo de classIdModal:', typeof classIdModal);
     fetchClassData();
   }, [visible, classIdModal]);
   
@@ -99,7 +110,6 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
   }, [fetchClassData, refreshOverviewData]);
 
   const handleTaskUpdate = useCallback(async () => {
-    //console.log('Actualizando tareas después de cambio...');
     await fetchClassData(false);
     await refreshOverviewData();
   }, [fetchClassData, refreshOverviewData]);
@@ -107,9 +117,7 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
    const handleTabChange = useCallback(async (tabId) => {
     setActiveTab(tabId);
     
-    // Si cambiamos al tab de tareas, refrescar datos
     if (tabId === 'tareas') {
-      //console.log('Refrescando datos del tab de tareas...');
       await fetchClassData(false);
     }
   }, [fetchClassData]);
@@ -212,7 +220,6 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
     setShowUpdateModal(true);
   };
 
-
   const { header, background, textColor } = claseData 
     ? getColorsByClassType(claseData.class_type)
     : { header: '#666', background: '#f5f5f5',textColor: '#000' };
@@ -233,10 +240,38 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
         return <InformacionTab claseData={claseData} color={color} docenteData={docenteData} promedioClase={promedioClase} />;
       
       case 'general':
-        return <GeneralTab claseData={claseData} cursoData={cursoData} promedioClase={promedioClase} />;
+        return <GeneralTab claseData={claseData} periodData={periodData} taskData={taskData}  promedioClase={promedioClase} />;
       
       case 'tareas':
-        return <TareasTab claseData={claseData} color={color} taskData={taskData} onTaskUpdate={handleTaskUpdate} />;
+      return (
+        <View style={{ flex: 1 }}>
+      <TareasTab 
+        claseData={claseData} 
+        color={color} 
+        taskData={taskData} 
+        onTaskUpdate={handleTaskUpdate} 
+      />
+
+      <TouchableOpacity
+        onPress={() => {
+          onClose(); // cierra el modal
+          router.push("/QADir/Tareas/AddTaskScreen"); // navega a AddTask
+        }}  
+        style={{
+          backgroundColor: header,
+          paddingVertical: 12,
+          paddingHorizontal: 20,
+          borderRadius: 10,
+          alignSelf: 'center',
+          marginVertical: 20,
+        }}
+      >
+        <Text style={{ color: textColor, fontWeight: 'bold', fontSize: 16 }}>
+          Agregar nueva tarea
+        </Text>
+      </TouchableOpacity>
+    </View>
+      );
       
       case 'recursos':
         return <RecursosTab claseData={claseData} />;
@@ -253,11 +288,12 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
       transparent={true}
       onRequestClose={onClose}
     >
+      
       <View style={styles.modalOverlay}>
         {showUpdateModal && (
           <UpdateClass
             visible={showUpdateModal}
-            classData={classToEdit}
+            classData={claseData}
             docenteData={docenteData}
             onClose={() => setShowUpdateModal(false)}
             onUpdated={() => {
@@ -266,6 +302,7 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
             }}
           />
         )}
+
         <View style={[styles.modalContent, { backgroundColor: '#fff' }]}>
           {/* Header del Modal */}
           <View style={[styles.modalHeader, { backgroundColor: header}]}>
@@ -274,7 +311,7 @@ const ClassModal = ({ visible, classIdModal, onClose }) => {
             </TouchableOpacity>
 
             <Text style={[styles.modalTitle, { top: 70, fontSize: 30, color:textColor }]}>
-              {loading ? 'Cargando...' : claseData?.class_name || 'Clase'}
+              {loading ? 'Cargando...' : claseData?.class_name || 'Sin Valor'}
             </Text>
             <Image 
               source={backgroundImage} 
@@ -486,43 +523,169 @@ const InformacionTab = ({ claseData, color, docenteData, promedioClase  }) => (
 );
 
 // Tab: General
-const GeneralTab = ({ claseData, cursoData, promedioClase }) => {
-  const fechaInicio = cursoData?.curso_fecha_inicio
-    ? new Date(cursoData.curso_fecha_inicio.seconds * 1000).toLocaleDateString()
+const GeneralTab = ({ claseData, periodData, taskData, promedioClase }) => {
+
+  const fechaInicio = periodData?.periodo_fecha_inicio
+    ? new Date(periodData.periodo_fecha_inicio.seconds * 1000).toLocaleDateString()
     : "No disponible";
 
-  const fechaFin = cursoData?.curso_fecha_final
-    ? new Date(cursoData.curso_fecha_final.seconds * 1000).toLocaleDateString()
+  const fechaFin = periodData?.periodo_fecha_final
+    ? new Date(periodData.periodo_fecha_final.seconds * 1000).toLocaleDateString()
     : "No disponible";
 
-    const { tasksValueMetadata } = useOverviewData();
-    const promedioGeneral = tasksValueMetadata.promedio_general;
+    const idPeridodoCurso = periodData?.periodo_curso_anio;
+    const periodosCursoMap = {
+      "1": "Primer Año",
+      "2": "Segundo Año",
+      "3": "Tercer Año",
+      "4": "Cuarto Año",
+    };
+    const periodo_anio = periodosCursoMap[idPeridodoCurso] ?? "No disponible";
 
-    return(
-      <View>
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Curso</Text>
-          <InfoRow label="Año" value={cursoData.curso_anio} />
-          <InfoRow label="Periodo" value={cursoData.curso_periodo} />
-          <InfoRow label="Fecha de Inicio" value={fechaInicio} />
-          <InfoRow label="Fecha Final" value={fechaFin} />
+    const periodoClass = periodData?.periodo_id;
+    const periodoClassMap = {
+      "1": "Primer Periodo",
+      "2": "Segundo Periodo",
+      "3": "Tercer Periodo",
+      "4": "Cuarto Periodo",
+      "5": "Quinto Periodo",
+      "6": "Sexto Periodo",
+      "7": "Séptimo Periodo",
+      "8": "Octavo Periodo",
+      "9": "Noveno Periodo",
+      "10": "Décimo Periodo",
+      "11": "Undécimo Periodo",
+      "12": "Duodécimo Periodo",
+    };
+    const periodo_clase = periodoClassMap[periodoClass] ?? "No disponible";
+    
+    const idClase = claseData?.clase_id ?? "0";
+
+  const calcularNotasPorParcial = async () => {
+    if (!taskData || taskData.length === 0) {
+      return {
+        bloque_1: '0.00',
+        bloque_2: '0.00',
+        nota_final: '0.00',
+        parcial_1: '0.00',
+        parcial_2: '0.00',
+        parcial_3: '0.00',
+        parcial_4: '0.00'
+      };
+    }
+
+    const notasPorParcial = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0
+    };
+
+    taskData.forEach(task => {
+      const parcial = parseInt(task.tarea_parcial);
+      const valorFinal = parseFloat(task.tarea_valor_final);
+
+      if (parcial >= 1 && parcial <= 4 && !isNaN(valorFinal)) {
+        notasPorParcial[parcial] += valorFinal;
+      }
+    });
+
+    
+
+    const bloque_1 = (notasPorParcial[1] + notasPorParcial[2]).toFixed(2);
+    const bloque_2 = (notasPorParcial[3] + notasPorParcial[4]).toFixed(2);
+    const nota_final = (parseFloat(bloque_1) + parseFloat(bloque_2)).toFixed(2);
+
+    if (idClase) {
+      //console.log('Intentando guardar promedio:', nota_final, 'para documento:', claseData.clase_id);
+      const resultado = await updateClassGrade(idClase, nota_final);
+      if (!resultado) {
+        console.warn('No se pudo guardar el promedio en Firebase');
+      }
+    } else {
+      console.warn('No hay document ID disponible para guardar el promedio');
+    }
+    return {
+      bloque_1,
+      bloque_2,
+      nota_final,
+      parcial_1: notasPorParcial[1].toFixed(2),
+      parcial_2: notasPorParcial[2].toFixed(2),
+      parcial_3: notasPorParcial[3].toFixed(2),
+      parcial_4: notasPorParcial[4].toFixed(2)
+    };
+  };
+
+  const [notas, setNotas] =useState({
+    bloque_1: '0.00',
+    bloque_2: '0.00',
+    nota_final: '0.00',
+    parcial_1: '0.00',
+    parcial_2: '0.00',
+    parcial_3: '0.00',
+    parcial_4: '0.00'
+  });
+
+  useEffect(() => {
+    const calcularYGuardar = async () => {
+      const notasCalculadas = await calcularNotasPorParcial();
+      setNotas(notasCalculadas);
+    };
+    
+    calcularYGuardar();
+  }, [taskData, claseData]);
+
+  return(
+    <View>
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Curso</Text>
+        <InfoRow label="Año" value={periodo_anio || 'N/A'} />
+        <InfoRow label="Periodo" value={periodo_clase} />
+        <InfoRow label="Fecha de Inicio" value={fechaInicio} />
+        <InfoRow label="Fecha Final" value={fechaFin} />
+      </View>
+
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Notas por Parcial</Text>
+        <InfoRow 
+          label="Parcial I (Acumulativo) " 
+          value={`${notas.parcial_1}/20`} 
+        />
+        <InfoRow 
+          label="Parcial II (Examen)" 
+          value={`${notas.parcial_2}/30`} 
+        />
+        <InfoRow 
+          label="Parcial III (Acumulativo)" 
+          value={`${notas.parcial_3}/20`} 
+        />
+        <InfoRow 
+          label="Parcial IV (Examen)" 
+          value={`${notas.parcial_4}/30`} 
+        />
+      </View>
+
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Resumen de Notas</Text>
+        <InfoRow 
+          label="Bloque 1 (Parcial I + II)" 
+          value={`${notas.bloque_1}/50`} 
+        />
+        <InfoRow 
+          label="Bloque 2 (Parcial III + IV)" 
+          value={`${notas.bloque_2}/50`} 
+        />
+        <View style={[styles.infoRow, { borderBottomWidth: 0, paddingTop: 15, borderTopWidth: 2, borderTopColor: '#e0e0e0' }]}>
+          <Text style={[styles.infoLabel, { fontFamily: 'poppins-semibold', fontSize: 16 }]}>
+            Nota Final:
+          </Text>
+          <Text style={[styles.infoValue, { fontFamily: 'poppins-bold', fontSize: 18, color: '#470427ff' }]}>
+            {notas.nota_final}/100
+          </Text>
         </View>
-
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Promedios</Text>
-          <InfoRow 
-            label="Promedio General" 
-            value={parseFloat(promedioGeneral).toFixed(2)} 
-          />
-          <InfoRow 
-            label="Promedio de Clase" 
-            value={promedioClase ? `${parseFloat(promedioClase.promedio).toFixed(2)}%` : 'Sin datos'} 
-          />
-
-        </View>
+      </View>
     </View>
-    );
-  
+  );
 };
 
 // Tab: Tareas
@@ -587,6 +750,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
+  
   modalContent: {
     width: '100%',
     height: '100%',
@@ -614,23 +778,24 @@ const styles = StyleSheet.create({
   },
 
   tareasHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 15,
-},
-tareasSummary: {
-  backgroundColor: '#f0f0f0',
-  paddingHorizontal: 12,
-  paddingVertical: 6,
-  borderRadius: 15,
-},
-tareasSummaryText: {
-  fontSize: 13,
-  fontWeight: '600',
-  color: '#666',
-},
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
 
+  tareasSummary: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+
+  tareasSummaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
 
   closeButton: {
     width: 40,
@@ -872,6 +1037,22 @@ swipeButton: {
   alignItems: 'center',
   width: 60,
   height: '100%',
+},
+
+fab: {
+  position: 'absolute',
+  bottom: 30, 
+  right: 25,
+  borderRadius: 50,
+  width: 60,
+  height: 60,
+  alignItems: 'center',
+  justifyContent: 'center',
+  elevation: 4,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.3,
+  shadowRadius: 4,
 },
 
 });

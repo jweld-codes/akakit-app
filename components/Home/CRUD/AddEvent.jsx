@@ -1,28 +1,25 @@
-// components/Clases/AddClass.jsx
+// components/Eventos/AddEvent.jsx
+import NotificationService from "@/services/NotificationService";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from "@react-native-picker/picker";
 import { useRouter } from "expo-router";
 import { addDoc, collection, getDocs, limit, orderBy, query, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { Alert, Button, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { db } from "../../../config/firebaseConfig";
 import colors from "../../../constants/colors";
-import container from "../../../constants/container";
-import global from "../../../constants/global";
-import ios_utils_screen from '../../../constants/ios/ios_utils_screen';
-import { scheduleMultipleReminders } from '../../../services/NotificationService';
 
-export default function AddClass() {
+
+export default function AddEvent() {
+  const router = useRouter();
+  
   const [eventoId, setEventoId] = useState(1);
   const [eventoClaseId, setEventoClaseId] = useState(0);
-
   const [eventoDescripcion, setEventoDescripcion] = useState("");
   const [eventoFecha, setEventoFecha] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-
-  const [eventoEstado, setEventoEstado] = useState("");
   const [eventoImg, setEventoImg] = useState("");
   const [eventoLugar, setEventoLugar] = useState("");
   const [eventoPuntos, setEventoPuntos] = useState(0);
@@ -30,7 +27,6 @@ export default function AddClass() {
   const [eventoTitulo, setEventoTitulo] = useState("");
   const [eventoUrl, setEventoUrl] = useState("");
   const [eventoAssist, setEventoAssist] = useState("");
-
   const [clase, setClase] = useState([]);
 
   useEffect(() => {
@@ -42,11 +38,9 @@ export default function AddClass() {
         setEventoId(lastEvent.evento_id + 1);
       }
 
-      // Obtener clases
       const claseSnapshot = await getDocs(collection(db, "idClaseCollection"));
       const claseList = claseSnapshot.docs.map(doc => doc.data());
       setClase(claseList);
-     // console.log(claseList);
     };
 
     fetchData();
@@ -72,8 +66,9 @@ export default function AddClass() {
   const formatDate = (date) => {
     if (!date || !(date instanceof Date)) return 'Seleccionar fecha';
     return date.toLocaleDateString('es-HN', {
+      weekday: 'short',
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric',
     });
   };
@@ -88,7 +83,7 @@ export default function AddClass() {
 
   const handleAddEvento = async () => {
     if (!eventoTitulo || !eventoFecha) {
-      Alert.alert("Error", "Por favor llena todos los campos obligatorios");
+      Alert.alert("Error", "Por favor completa el título y la fecha del evento");
       return;
     }
 
@@ -117,11 +112,11 @@ export default function AddClass() {
         evento_fecha_date: eventoFecha,
       };
 
-      // Recordatorios: 1 día antes, 1 hora antes, 30 min antes
-      await scheduleMultipleReminders(eventoConId, 'event', [24 * 60, 60, 20]);
+      await NotificationService.scheduleMultipleReminders(eventoConId, "event", [60, 20]);
 
-      Alert.alert("✅ Evento agregado", "El evento fue guardado con recordatorios");
+      Alert.alert("✅ Evento creado", "El evento fue guardado exitosamente con recordatorios");
       resetForm();
+      router.back();
     } catch (error) {
       console.error("Error al guardar el evento:", error);
       Alert.alert("Error", "No se pudo guardar el evento");
@@ -132,7 +127,6 @@ export default function AddClass() {
     setEventoAssist("");
     setEventoClaseId("");
     setEventoDescripcion("");
-    setEventoEstado("");
     setEventoFecha(new Date());
     setEventoId(eventoId + 1);
     setEventoImg("");
@@ -143,275 +137,475 @@ export default function AddClass() {
     setEventoUrl("");
   };
 
-  const router = useRouter();
-  
   return (
-    <ScrollView stickyHeaderIndices={[0]}>
-      <View style={ios_utils_screen.utils_tabs_black}><Text>.</Text></View>
-      
-      <View style={container.container}>
-        <View style={[global.notSpaceBetweenObjects, {top:20, marginBottom:40}]}>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/dashboard')}>
-            <Ionicons name="arrow-back-circle-outline" size={35} color={colors.color_palette_1.lineArt_Purple} />
-          </TouchableOpacity>
-
-          <Text style={{
-            fontSize: 20,
-            fontFamily: 'poppings-regular',
-            color:colors.color_palette_1.lineArt_Purple
-          }}> Go back </Text>
+    <View style={styles.container}>
+      {/* Header Fixed */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Nuevo Evento</Text>
+          <Text style={styles.headerSubtitle}>ID del evento: #{eventoId}</Text>
         </View>
+      </View>
 
-        <View style={{
-          marginBottom:120,
-          borderBottomWidth:1,
-          borderColor: '#c9c6c6ff'
-        }}>
-          <Text style={{
-            fontFamily: 'poppins-bold',
-            fontSize: 50
-          }}>Create New Event</Text>
-          <Text style={{color:'#c9c6c6ff'}}>Event Id to be created: {eventoId}</Text>
-        </View>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Información básica */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="information-circle" size={24} color={colors.color_palette_1.lineArt_Purple} />
+            <Text style={styles.sectionTitle}>Información Básica</Text>
+          </View>
 
-        {/* Form */}
-        <View style={{padding: 10, bottom:100}}>
-          
-          <View>
-            <Text style={styles.subtitle}>Event Title</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Título del evento *</Text>
             <TextInput 
               style={styles.input} 
-              placeholder="Nombre del evento" 
+              placeholder="Ej: Webinar de Machine Learning" 
               value={eventoTitulo} 
-              onChangeText={setEventoTitulo} 
+              onChangeText={setEventoTitulo}
+              placeholderTextColor="#999"
             />
           </View>
-          
-          <View style={{marginBottom:20}}>
-                <View>
-                  <Text style={styles.subtitle}>Descripcion</Text>
-                  <TextInput 
-                    style={styles.input} 
-                    placeholder="Descripcion de la Clase" 
-                    value={eventoDescripcion} 
-                    onChangeText={setEventoDescripcion} 
-                  />
-                </View>
-              </View>
 
-          {/* SELECTOR DE FECHA Y HORA */}
-          <View style={{marginBottom: 20}}>
-            <View style={global.aside}>
-                <Text style={styles.subtitle}>Fecha y Hora</Text>
-                <TouchableOpacity onPress={() => [setShowDatePicker(false), setShowTimePicker(false)]}>
-                    <Ionicons 
-                    name="arrow-up-circle" 
-                    size={35} 
-                    color={colors.color_palette_1.lineArt_Purple}
-                    />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Descripción</Text>
+            <TextInput 
+              style={[styles.input, styles.textArea]} 
+              placeholder="Descripción del evento..." 
+              value={eventoDescripcion} 
+              onChangeText={setEventoDescripcion}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              placeholderTextColor="#999"
+            />
+          </View>
+        </View>
+
+        {/* Fecha y Hora */}
+        <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="calendar" size={24} color={colors.color_palette_1.lineArt_Purple} />
+              <Text style={styles.sectionTitle}>Fecha y Hora</Text>
+              {(showDatePicker || showTimePicker) && (
+                <TouchableOpacity 
+                  onPress={() => [setShowDatePicker(false), setShowTimePicker(false)]}
+                  style={styles.hideButton}
+                >
+                  <Text style={styles.hideButtonText}>Ocultar</Text>
                 </TouchableOpacity>
+              )}
             </View>
 
-            <View style={styles.dateTimeContainer}>
+          <View style={styles.inputGroup}>
+              <View style={styles.dateTimeRow}>
               <TouchableOpacity 
-                style={styles.dateButton}
-                onPress={() => setShowDatePicker(true)}
+                style={styles.dateTimeButton}
+                onPress={() => [setShowDatePicker(false), setShowDatePicker(true)]}
               >
                 <Ionicons name="calendar-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
-                <Text style={styles.dateButtonText}>{formatDate(eventoFecha)}</Text>
+                <View style={styles.dateTimeTextContainer}>
+                  <Text style={styles.dateTimeLabel}>Fecha</Text>
+                  <Text style={styles.dateTimeValue}>{formatDate(eventoFecha)}</Text>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity 
-                style={styles.dateButton}
-                onPress={() => setShowTimePicker(true)}
+                style={styles.dateTimeButton}
+                onPress={() => [setShowTimePicker(false), setShowTimePicker(true)]}
               >
                 <Ionicons name="time-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
-                <Text style={styles.dateButtonText}>{formatTime(eventoFecha)}</Text>
+                <View style={styles.dateTimeTextContainer}>
+                  <Text style={styles.dateTimeLabel}>Hora</Text>
+                  <Text style={styles.dateTimeValue}>{formatTime(eventoFecha)}</Text>
+                </View>
               </TouchableOpacity>
             </View>
 
-
             {showDatePicker && (
-              <DateTimePicker
-              style={styles.input_datepicker}
-                value={eventoFecha}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onChangeDate}
-                minimumDate={new Date()}
-              />
+              <View style={styles.pickerContainer}>
+                <DateTimePicker
+                  value={eventoFecha}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onChangeDate}
+                  minimumDate={new Date()}
+                  textColor="#000"
+                />
+              </View>
             )}
 
             {showTimePicker && (
-              <DateTimePicker
-                style={styles.input_datepicker}
-                value={eventoFecha}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onChangeTime}
-              />
+              <View style={styles.pickerContainer}>
+                <DateTimePicker
+                  value={eventoFecha}
+                  mode="time"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onChangeTime}
+                  textColor="#000"
+                />
+              </View>
             )}
           </View>
-          
 
+        </View>
 
-          <View>
-            <View>
-              <View>
-                <Text style={[styles.subtitle, { top:20, fontSize: 18}]}>Modality</Text>
-                <Picker 
-                  style={[styles.input_picker, {height:200, top:10}]} 
-                  selectedValue={eventoLugar} 
-                  onValueChange={setEventoLugar} 
-                  itemStyle={{color:'#000'}}
-                >
-                  <Picker.Item label="Select" value="" />
-                  <Picker.Item label="Virtual" value="Virtual" />
-                  <Picker.Item label="Presencial" value="Presencial" />
-                  <Picker.Item label="Hibrida" value="Hibrida" />
-                </Picker>
-              </View>
-            </View>
+        {/* Detalles del evento */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="settings" size={24} color={colors.color_palette_1.lineArt_Purple} />
+            <Text style={styles.sectionTitle}>Detalles del Evento</Text>
           </View>
-          
 
-          <View style={{top:40}}>
-            <View>
-              <Text style={styles.subtitle}>Tipo de Evento:</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Tipo de Evento</Text>
+            <View style={styles.pickerWrapper}>
               <Picker 
-                style={{bottom:80}} 
                 selectedValue={eventoTipo} 
-                onValueChange={setEventoTipo} 
-                itemStyle={styles.input_picker}
+                onValueChange={setEventoTipo}
+                style={styles.picker}
+                itemStyle={styles.pickerItem}
               >
-                <Picker.Item label="Select Type" value="" />
+                <Picker.Item label="Selecciona un tipo" value="" />
                 <Picker.Item label="Webinar" value="Webinar" />
                 <Picker.Item label="Taller" value="Taller" />
                 <Picker.Item label="Salida a Empresa" value="Salida" />
+                <Picker.Item label="Conferencia" value="Conferencia" />
               </Picker>
-            </View>
-
-            <View style={{top:15, marginBottom:20}}>
-              <Text style={styles.subtitle}>URL de la Imagen</Text>
-              <TextInput 
-                style={styles.input} 
-                placeholder="URL de Imagen" 
-                value={eventoImg} 
-                onChangeText={setEventoImg} 
-              />
-            </View>
-
-            <View style={{top:15, marginBottom:20}}>
-              <Text style={styles.subtitle}>URL de la Sala Virtual</Text>
-              <TextInput 
-                style={styles.input} 
-                placeholder="URL de Acceso" 
-                value={eventoUrl} 
-                onChangeText={setEventoUrl} 
-              />
             </View>
           </View>
 
-          <View style={{top:60}}>
-            <View style={global.aside}>
-              <Text style={styles.subtitle}>Proviene de una Clase?</Text>
-              
-              <TouchableOpacity onPress={() => router.push("/QADir/Professors/AddProfessorScreen")}>
-                <Ionicons name="add-circle-sharp" size={35} color={colors.color_palette_1.lineArt_Purple} />
-              </TouchableOpacity>
-            </View>
-            <Picker 
-              selectedValue={eventoClaseId} 
-              onValueChange={setEventoClaseId} 
-              itemStyle={styles.input_picker} 
-              style={{bottom:80}}
-            >
-              <Picker.Item label="Selecciona una Clase" value="N/A" />
-              {clase.map((doc, index) => (
-                <Picker.Item key={index} label={doc.class_name} value={doc.id || doc.clase_id} />
-              ))}
-            </Picker>
-
-            <View style={{
-              height:50,
-              backgroundColor:'rgba(153, 213, 255, 1)',
-              top:40,
-              marginBottom:50,
-              borderRadius:15,
-              alignItems:'center',
-              paddingTop:5
-            }}>
-              <Button title="Guardar Evento" onPress={handleAddEvento} />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Modalidad</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker 
+                selectedValue={eventoLugar} 
+                onValueChange={setEventoLugar}
+                style={styles.picker}
+                itemStyle={styles.pickerItem}
+              >
+                <Picker.Item label="Selecciona modalidad" value="" />
+                <Picker.Item label="Virtual" value="Virtual" />
+                <Picker.Item label="Presencial" value="Presencial" />
+                <Picker.Item label="Híbrida" value="Hibrida" />
+              </Picker>
             </View>
           </View>
         </View>
+
+        {/* Enlaces y recursos */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="link" size={24} color={colors.color_palette_1.lineArt_Purple} />
+            <Text style={styles.sectionTitle}>Enlaces y Recursos</Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>URL de la imagen</Text>
+            <TextInput 
+              style={styles.input} 
+              placeholder="https://ejemplo.com/imagen.jpg" 
+              value={eventoImg} 
+              onChangeText={setEventoImg}
+              keyboardType="url"
+              autoCapitalize="none"
+              placeholderTextColor="#999"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>URL de acceso (Zoom, Meet, etc.)</Text>
+            <TextInput 
+              style={styles.input} 
+              placeholder="https://zoom.us/j/..." 
+              value={eventoUrl} 
+              onChangeText={setEventoUrl}
+              keyboardType="url"
+              autoCapitalize="none"
+              placeholderTextColor="#999"
+            />
+          </View>
+        </View>
+
+        {/* Clase asociada */}
+        <View style={[styles.section, { marginBottom: 100 }]}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="school" size={24} color={colors.color_palette_1.lineArt_Purple} />
+            <Text style={styles.sectionTitle}>Clase Asociada</Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>¿Proviene de alguna clase?</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker 
+                selectedValue={eventoClaseId} 
+                onValueChange={setEventoClaseId}
+                style={styles.picker}
+                itemStyle={styles.pickerItem}
+              >
+                <Picker.Item label="Sin clase asociada" value="N/A" />
+                {clase.map((doc, index) => (
+                  <Picker.Item 
+                    key={index} 
+                    label={doc.class_name} 
+                    value={doc.id || doc.clase_id} 
+                  />
+                ))}
+              </Picker>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Footer con botones */}
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={styles.cancelButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.cancelButtonText}>Cancelar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.saveButton}
+          onPress={handleAddEvento}
+        >
+          <Ionicons name="checkmark-circle" size={20} color="#fff" />
+          <Text style={styles.saveButtonText}>Guardar Evento</Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
-  subtitle: { fontSize: 16, marginBottom: 10, color: "#555" },
-  
-  input: {
-    borderWidth: 2,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-  },
-  input_aside: {
-    width:150,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-  },
-  input_aside_picker: {
-    width:150,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-  },
-  
-  label: { fontSize: 16, marginBottom: 5 },
-  input_picker: {
-    color: '#000',
-    top: 80,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-  },
-  input_datepicker: {
-    top: 20,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    backgroundColor: '#000'
-  },
-  dateTimeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  dateButton: {
+  container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+
+  
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  hideButton: {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      backgroundColor: '#f0f0f0',
+      borderRadius: 12,
+    },
+    hideButtonText: {
+      fontSize: 12,
+      fontFamily: 'poppins-medium',
+      color: colors.color_palette_1.lineArt_Purple,
+    },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontFamily: 'poppins-bold',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    fontFamily: 'poppins-regular',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 2,
+  },
+
+  // ScrollView
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+  },
+
+  // Sections
+  section: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+    marginLeft: 10,
+  },
+
+  // Input Groups
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontFamily: 'poppins-medium',
+    color: '#555',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 15,
+    fontFamily: 'poppins-regular',
+    color: '#333',
+    backgroundColor: '#fafafa',
+  },
+  textArea: {
+    height: 100,
+    paddingTop: 15,
+  },
+
+  // Date Time
+  dateTimeRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  dateTimeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fafafa',
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 15,
+    gap: 12,
+  },
+  dateTimeTextContainer: {
+    flex: 1,
+  },
+  dateTimeLabel: {
+    fontSize: 12,
+    fontFamily: 'poppins-regular',
+    color: '#888',
+    marginBottom: 2,
+  },
+  dateTimeValue: {
+    fontSize: 14,
+    fontFamily: 'poppins-medium',
+    color: '#333',
+  },
+  pickerContainer: {
+    marginTop: 15,
+    backgroundColor: '#fafafa',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+
+  // Picker
+  pickerWrapper: {
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    backgroundColor: '#fafafa',
+    overflow: 'hidden',
+  },
+  picker: {
+    height: Platform.OS === 'ios' ? 180 : 50,
+  },
+  pickerItem: {
+    fontSize: 16,
+    fontFamily: 'poppins-regular',
+    color: '#333',
+  },
+
+  // Footer
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    padding: 20,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontFamily: 'poppins-semibold',
+    color: '#666',
+  },
+  saveButton: {
+    flex: 2,
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+    borderRadius: 12,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderWidth: 2,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 15,
-    backgroundColor: '#f9f9f9',
+    shadowColor: colors.color_palette_1.lineArt_Purple,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  dateButtonText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+  saveButtonText: {
+    fontSize: 16,
+    fontFamily: 'poppins-semibold',
+    color: '#fff',
   },
 });

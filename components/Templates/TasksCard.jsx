@@ -2,7 +2,6 @@
 import colors from "@/constants/colors";
 import global from "@/constants/global";
 import { Ionicons } from "@expo/vector-icons";
-import { Link } from "expo-router";
 import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import TaskDetailModal from '../../modals/TaskDetailModal';
@@ -15,17 +14,17 @@ export default function TasksCard({ task, onRemove }) {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState(null);
 
+
   const handleTaskPress = (task) => {
     setSelectedTask(task);
     setShowTaskModal(true);
   };
-
   
   // Editar tarea
   const handleEdit = (task) => {
   setTaskToEdit(task);
   setShowUpdateModal(true);
-};
+  };
 
 const handleDelete = async (task) => {
     Alert.alert(
@@ -176,12 +175,12 @@ const handleDelete = async (task) => {
         </View>
 
         {/* Título */}
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={styles.title} numberOfLines={4}>
           {task.tarea_titulo}
         </Text>
 
         {/* Descripción */}
-        <Text style={styles.description} numberOfLines={2}>
+        <Text style={styles.description} numberOfLines={4}>
           {task.tarea_descripcion || "Sin descripción"}
         </Text>
 
@@ -211,40 +210,31 @@ const handleDelete = async (task) => {
           <Text style={[styles.actionButtonText, { color: color }]}>
             Ver Tarea
           </Text>
-        </TouchableOpacity>
-        <TaskDetailModal
-          visible={showTaskModal}
-          task={selectedTask}
-          onClose={() => {
-            setShowTaskModal(false);
-            setSelectedTask(null);
-          }}
-          onEdit={handleEdit}
+          </TouchableOpacity>
+          <TaskDetailModal
+            visible={showTaskModal}
+            task={selectedTask}
+            onClose={() => {
+              setShowTaskModal(false);
+              setSelectedTask(null);
+            }}
+            onEdit={handleEdit}
+            />
+          <UpdateTask
+            visible={showUpdateModal}
+            task={taskToEdit}
+            onClose={() => {
+                setShowUpdateModal(false);
+                setTaskToEdit(null);
+            }}
+            onUpdated={() => {
+                setShowUpdateModal(false);
+                setTaskToEdit(null);
+            }}
           />
-      <UpdateTask
-        visible={showUpdateModal}
-        task={taskToEdit}
-        onClose={() => {
-            setShowUpdateModal(false);
-            setTaskToEdit(null);
-        }}
-        onUpdated={() => {
-            setShowUpdateModal(false);
-            setTaskToEdit(null);
-        }}
-      />
 
         </View>
         
-        <Link 
-          href="/(tabs)/tareas" 
-          style={[styles.actionButton, { backgroundColor: header }]}
-        >
-          <Text style={[styles.actionButtonText, { color: color }]}>
-            Ir a Tareas
-          </Text>
-        </Link>
-
         {/* Footer con info de clase */}
         <View style={[global.aside ,styles.footer]}>
           <Text style={styles.footerText} numberOfLines={3}>
@@ -326,6 +316,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 22,
     lineHeight: 18,
+    height:70
   },
   dateContainer: {
     flexDirection: 'row',

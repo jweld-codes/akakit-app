@@ -19,7 +19,7 @@ export const getClassById = async(claseIdd) => {
       //console.log("Clase encontrada:", data); // Debug
       return data;
     } else {
-      console.log("No se encontró ninguna clase con ese ID:", claseIdd);
+      //console.log("No se encontró ninguna clase con ese ID:", claseIdd);
       return null;
     }
   } catch (e) {

@@ -5,6 +5,7 @@ export default{
     Task Card
     ClaseCards
     ClassUpcomingCard
+    ClassTodaCard
   */
     card: {
     backgroundColor:'#e6fadeff',
@@ -52,16 +53,7 @@ export default{
     color: colors.color_palette_4.lineArt_grey,
   },
 
-  cardUpcomingClassCard: {
-    backgroundColor: colors.color_palette_1.lineArt_Purple,
-    right: 25,
-    paddingVertical: 20,
-    paddingHorizontal: 25,
-    borderRadius: 20,
-    width: 330,
-    height: 270
-  },
-
+  // Class Card - Overview
   cardUpcomingHeader: {
     bottom: 20,
     paddinTop: 10,
@@ -104,7 +96,7 @@ export default{
   card_subtitle: {
     fontSize: 14, 
     fontFamily:'poppins-regular',
-    color: "#c9c9c9ff",
+    color: "#e6e4e4ff",
   },
 
    card_subtitle_event: {

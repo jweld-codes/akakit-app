@@ -1,525 +1,617 @@
-// app/QADir/Settings/NotificationsSettingsScreen.jsx
+// components/Settings/NotificationSettings.jsx
+import colors from '@/constants/colors';
+import NotificationService from '@/services/NotificationService';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import colors from '../../constants/colors';
-import {
-    cancelAllNotifications,
-    getAllScheduledNotifications,
-    scheduleDailySummary,
-    sendImmediateNotification,
-} from '../../services/NotificationService';
 
-const SETTINGS_KEY = '@notification_settings';
-
-export default function NotificationsSettingsScreen() {
-  const router = useRouter();
-  const [settings, setSettings] = useState({
-    tasksEnabled: true,
-    eventsEnabled: true,
-    dailySummaryEnabled: false,
-    taskReminders: {
-      oneDayBefore: true,
-      oneHourBefore: true,
-      thirtyMinBefore: false,
-    },
-    eventReminders: {
-      oneDayBefore: true,
-      oneHourBefore: true,
-      thirtyMinBefore: true,
-    },
-  });
-  const [scheduledNotifications, setScheduledNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
+export default function NotificationSettings() {
+  const [loading, setLoading] = useState(true);
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
+  
+  // Estados de configuración
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [classReminders, setClassReminders] = useState(true);
+  const [taskReminders, setTaskReminders] = useState(true);
+  const [dailySummary, setDailySummary] = useState(false);
+  const [emailNotifications, setEmailNotifications] = useState(false);
+  const [pushNotifications, setPushNotifications] = useState(true);
+  
+  // Tiempos de recordatorio
+  const [classReminderTime, setClassReminderTime] = useState(60); 
+  const [taskReminderTime, setTaskReminderTime] = useState(24); 
+  
+  // Estadísticas
+  const [scheduledCount, setScheduledCount] = useState(0);
 
   useEffect(() => {
     loadSettings();
+    checkPermissions();
     loadScheduledNotifications();
   }, []);
 
   const loadSettings = async () => {
     try {
-      const saved = await AsyncStorage.getItem(SETTINGS_KEY);
-      if (saved) {
-        setSettings(JSON.parse(saved));
+      const settings = await AsyncStorage.getItem('notification_settings');
+      if (settings) {
+        const parsed = JSON.parse(settings);
+        setNotificationsEnabled(parsed.notificationsEnabled ?? true);
+        setClassReminders(parsed.classReminders ?? true);
+        setTaskReminders(parsed.taskReminders ?? true);
+        setDailySummary(parsed.dailySummary ?? false);
+        setEmailNotifications(parsed.emailNotifications ?? false);
+        setPushNotifications(parsed.pushNotifications ?? true);
+        setClassReminderTime(parsed.classReminderTime ?? 60);
+        setTaskReminderTime(parsed.taskReminderTime ?? 24);
       }
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('Error al cargar configuración:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const saveSettings = async (newSettings) => {
     try {
-      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
-      setSettings(newSettings);
+      const currentSettings = {
+        notificationsEnabled,
+        classReminders,
+        taskReminders,
+        dailySummary,
+        emailNotifications,
+        pushNotifications,
+        classReminderTime,
+        taskReminderTime,
+        ...newSettings,
+      };
+      await AsyncStorage.setItem('notification_settings', JSON.stringify(currentSettings));
     } catch (error) {
-      console.error('Error saving settings:', error);
+      console.error('Error al guardar configuración:', error);
+    }
+  };
+
+  const checkPermissions = async () => {
+    const granted = await NotificationService.requestPermissions();
+    setPermissionsGranted(granted);
+    if (!granted) {
+      Alert.alert(
+        'Permisos necesarios',
+        'Para recibir notificaciones, debes habilitar los permisos en la configuración de tu dispositivo.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Configuración', onPress: () => router.push("/(tabs)/ajustes") }
+        ]
+      );
     }
   };
 
   const loadScheduledNotifications = async () => {
-    setLoading(true);
-    const notifications = await getAllScheduledNotifications();
-    setScheduledNotifications(notifications);
-    setLoading(false);
+    const notifications = await NotificationService.getAllScheduledNotifications();
+    setScheduledCount(notifications.length);
   };
 
-  const handleToggle = (key, value) => {
-    const newSettings = { ...settings, [key]: value };
-    saveSettings(newSettings);
-
-    if (key === 'dailySummaryEnabled' && value) {
-      scheduleDailySummary(8, 0);
-      Alert.alert('✅', 'Resumen diario activado para las 8:00 AM');
+  const handleToggleNotifications = async (value) => {
+    setNotificationsEnabled(value);
+    await saveSettings({ notificationsEnabled: value });
+    
+    if (!value) {
+      await NotificationService.cancelAllNotifications();
+      setScheduledCount(0);
+      Alert.alert(
+        'Notificaciones desactivadas',
+        'Todas las notificaciones programadas han sido canceladas.'
+      );
     }
   };
 
-  const handleReminderToggle = (type, key, value) => {
-    const newSettings = {
-      ...settings,
-      [type]: {
-        ...settings[type],
-        [key]: value,
-      },
-    };
-    saveSettings(newSettings);
+  const handleToggleClassReminders = async (value) => {
+    setClassReminders(value);
+    await saveSettings({ classReminders: value });
   };
 
-  const handleClearAll = () => {
+  const handleToggleTaskReminders = async (value) => {
+    setTaskReminders(value);
+    await saveSettings({ taskReminders: value });
+  };
+
+  const handleToggleDailySummary = async (value) => {
+    setDailySummary(value);
+    await saveSettings({ dailySummary: value });
+    
+    if (value) {
+      await NotificationService.scheduleDailySummary(7, 0); 
+      Alert.alert('Resumen diario activado', 'Recibirás un resumen todos los días a las 7:00 AM');
+    }
+  };
+
+  const handleTestNotification = async () => {
+    if (!permissionsGranted) {
+      Alert.alert('Permisos necesarios', 'Primero debes habilitar los permisos de notificaciones');
+      return;
+    }
+    
+    await NotificationService.sendTestNotification();
     Alert.alert(
-      'Cancelar todas las notificaciones',
-      '¿Estás seguro? Esto cancelará todos los recordatorios programados.',
+      'Notificación enviada',
+      'Si no la ves, verifica los permisos de notificaciones en tu dispositivo'
+    );
+  };
+
+  const handleClearAllNotifications = () => {
+    Alert.alert(
+      'Cancelar notificaciones',
+      '¿Deseas cancelar todas las notificaciones programadas?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Sí, cancelar todas',
+          text: 'Confirmar',
           style: 'destructive',
           onPress: async () => {
-            setLoading(true);
-            await cancelAllNotifications();
-            await loadScheduledNotifications();
-            setLoading(false);
-            Alert.alert('✅', 'Todas las notificaciones fueron canceladas');
-          },
-        },
+            await NotificationService.cancelAllNotifications();
+            setScheduledCount(0);
+            Alert.alert('Completado', 'Todas las notificaciones han sido canceladas');
+          }
+        }
       ]
     );
   };
 
-  const handleTestNotification = async () => {
-    await sendImmediateNotification(
-      '🔔 Notificación de Prueba',
-      'Si ves esto, las notificaciones están funcionando correctamente',
-      { type: 'test' }
+  const handleViewScheduled = async () => {
+    const notifications = await NotificationService.getAllScheduledNotifications();
+    
+    if (notifications.length === 0) {
+      Alert.alert('Sin notificaciones', 'No hay notificaciones programadas');
+      return;
+    }
+
+    const message = notifications.map((n, i) => {
+      const trigger = n.trigger;
+      const time = trigger.type === 'date' 
+        ? new Date(trigger.value * 1000).toLocaleString() 
+        : 'Recurrente';
+      return `${i + 1}. ${n.content.title} - ${time}`;
+    }).join('\n\n');
+
+    Alert.alert('Notificaciones Programadas', message, [{ text: 'OK' }]);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.color_palette_1.lineArt_Purple} />
+      </View>
     );
-    Alert.alert('✅', 'Notificación de prueba enviada');
-  };
-
-  const formatTrigger = (trigger) => {
-    if (!trigger) return 'Inmediata';
-    if (trigger.type === 'date' && trigger.value) {
-      return new Date(trigger.value * 1000).toLocaleString('es-HN', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-    if (trigger.type === 'timeInterval' && trigger.seconds) {
-      const hours = Math.floor(trigger.seconds / 3600);
-      const minutes = Math.floor((trigger.seconds % 3600) / 60);
-      if (hours > 0) return `En ${hours}h ${minutes}m`;
-      return `En ${minutes} min`;
-    }
-    return 'Programada';
-  };
-
-  const renderNotificationItem = ({ item }) => (
-    <View style={styles.notificationItem}>
-      <View style={styles.notificationIcon}>
-        <Ionicons 
-          name={item.content.data?.type === 'task' ? 'checkbox-outline' : 'calendar-outline'} 
-          size={20} 
-          color={colors.color_palette_1.lineArt_Purple} 
-        />
-      </View>
-      <View style={styles.notificationContent}>
-        <Text style={styles.notificationTitle} numberOfLines={1}>
-          {item.content.title}
-        </Text>
-        <Text style={styles.notificationBody} numberOfLines={1}>
-          {item.content.body}
-        </Text>
-        <Text style={styles.notificationTime}>
-          {formatTrigger(item.trigger)}
-        </Text>
-      </View>
-    </View>
-  );
+  }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Configuración de Notificaciones</Text>
+        <Text style={styles.headerTitle}>Notificaciones</Text>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Sección: Habilitar/Deshabilitar */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tipos de Notificaciones</Text>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="checkbox-outline" size={24} color={colors.color_palette_1.lineArt_Purple} />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Tareas</Text>
-                <Text style={styles.settingDescription}>Recordatorios de entregas</Text>
-              </View>
-            </View>
-            <Switch
-              value={settings.tasksEnabled}
-              onValueChange={(value) => handleToggle('tasksEnabled', value)}
-              trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-              ios_backgroundColor="#ccc"
-            />
-          </View>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="calendar-outline" size={24} color={colors.color_palette_1.lineArt_Purple} />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Eventos</Text>
-                <Text style={styles.settingDescription}>Recordatorios de eventos</Text>
-              </View>
-            </View>
-            <Switch
-              value={settings.eventsEnabled}
-              onValueChange={(value) => handleToggle('eventsEnabled', value)}
-              trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-              ios_backgroundColor="#ccc"
-            />
-          </View>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="sunny-outline" size={24} color={colors.color_palette_1.lineArt_Purple} />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Resumen Diario</Text>
-                <Text style={styles.settingDescription}>Notificación a las 8:00 AM</Text>
-              </View>
-            </View>
-            <Switch
-              value={settings.dailySummaryEnabled}
-              onValueChange={(value) => handleToggle('dailySummaryEnabled', value)}
-              trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-              ios_backgroundColor="#ccc"
-            />
-          </View>
-        </View>
-
-        {/* Sección: Recordatorios de Tareas */}
-        {settings.tasksEnabled && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recordatorios de Tareas</Text>
-
-            <View style={styles.reminderRow}>
-              <Text style={styles.reminderLabel}>1 día antes</Text>
-              <Switch
-                value={settings.taskReminders.oneDayBefore}
-                onValueChange={(value) => handleReminderToggle('taskReminders', 'oneDayBefore', value)}
-                trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-                ios_backgroundColor="#ccc"
-              />
-            </View>
-
-            <View style={styles.reminderRow}>
-              <Text style={styles.reminderLabel}>1 hora antes</Text>
-              <Switch
-                value={settings.taskReminders.oneHourBefore}
-                onValueChange={(value) => handleReminderToggle('taskReminders', 'oneHourBefore', value)}
-                trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-                ios_backgroundColor="#ccc"
-              />
-            </View>
-
-            <View style={styles.reminderRow}>
-              <Text style={styles.reminderLabel}>30 minutos antes</Text>
-              <Switch
-                value={settings.taskReminders.thirtyMinBefore}
-                onValueChange={(value) => handleReminderToggle('taskReminders', 'thirtyMinBefore', value)}
-                trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-                ios_backgroundColor="#ccc"
-              />
-            </View>
-          </View>
-        )}
-
-        {/* Sección: Recordatorios de Eventos */}
-        {settings.eventsEnabled && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recordatorios de Eventos</Text>
-
-            <View style={styles.reminderRow}>
-              <Text style={styles.reminderLabel}>1 día antes</Text>
-              <Switch
-                value={settings.eventReminders.oneDayBefore}
-                onValueChange={(value) => handleReminderToggle('eventReminders', 'oneDayBefore', value)}
-                trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-                ios_backgroundColor="#ccc"
-              />
-            </View>
-
-            <View style={styles.reminderRow}>
-              <Text style={styles.reminderLabel}>1 hora antes</Text>
-              <Switch
-                value={settings.eventReminders.oneHourBefore}
-                onValueChange={(value) => handleReminderToggle('eventReminders', 'oneHourBefore', value)}
-                trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-                ios_backgroundColor="#ccc"
-              />
-            </View>
-
-            <View style={styles.reminderRow}>
-              <Text style={styles.reminderLabel}>30 minutos antes</Text>
-              <Switch
-                value={settings.eventReminders.thirtyMinBefore}
-                onValueChange={(value) => handleReminderToggle('eventReminders', 'thirtyMinBefore', value)}
-                trackColor={{ false: '#ccc', true: colors.color_palette_1.lineArt_Purple }}
-                ios_backgroundColor="#ccc"
-              />
-            </View>
-          </View>
-        )}
-
-        {/* Sección: Notificaciones Programadas */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Notificaciones Programadas</Text>
-            <TouchableOpacity onPress={loadScheduledNotifications}>
-              <Ionicons name="refresh" size={20} color={colors.color_palette_1.lineArt_Purple} />
-            </TouchableOpacity>
-          </View>
-
-          {loading ? (
-            <ActivityIndicator size="small" color={colors.color_palette_1.lineArt_Purple} style={{ marginVertical: 20 }} />
-          ) : scheduledNotifications.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="notifications-off-outline" size={40} color="#ccc" />
-              <Text style={styles.emptyText}>No hay notificaciones programadas</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={scheduledNotifications}
-              renderItem={renderNotificationItem}
-              keyExtractor={(item) => item.identifier}
-              scrollEnabled={false}
-            />
-          )}
-
-          <Text style={styles.notificationCount}>
-            {scheduledNotifications.length} {scheduledNotifications.length === 1 ? 'notificación' : 'notificaciones'}
-          </Text>
-        </View>
-
-        {/* Sección: Acciones */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acciones</Text>
-
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={handleTestNotification}
-          >
-            <Ionicons name="notifications-outline" size={20} color={colors.color_palette_1.lineArt_Purple} />
-            <Text style={styles.actionButtonText}>Enviar notificación de prueba</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.dangerButton]}
-            onPress={handleClearAll}
-            disabled={scheduledNotifications.length === 0}
-          >
-            <Ionicons name="trash-outline" size={20} color="#e74c3c" />
-            <Text style={[styles.actionButtonText, styles.dangerText]}>
-              Cancelar todas las notificaciones
+      {/* Estado de permisos */}
+      {!permissionsGranted && (
+        <View style={styles.warningBanner}>
+          <Ionicons name="warning" size={24} color="#f59e0b" />
+          <View style={styles.warningText}>
+            <Text style={styles.warningTitle}>Permisos requeridos</Text>
+            <Text style={styles.warningSubtitle}>
+              Habilita los permisos para recibir notificaciones
             </Text>
+          </View>
+          <TouchableOpacity onPress={checkPermissions}>
+            <Ionicons name="settings-outline" size={24} color="#f59e0b" />
           </TouchableOpacity>
         </View>
+      )}
 
-        {/* Espacio final */}
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </View>
+      {/* Estadísticas */}
+      <View style={styles.statsCard}>
+        <View style={styles.statItem}>
+          <Ionicons name="notifications" size={32} color={colors.color_palette_1.lineArt_Purple} />
+          <Text style={styles.statNumber}>{scheduledCount}</Text>
+          <Text style={styles.statLabel}>Notificaciones programadas</Text>
+        </View>
+      </View>
+
+      {/* Configuración general */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>General</Text>
+        
+        <SettingToggle
+          icon="notifications"
+          title="Notificaciones"
+          subtitle="Habilitar todas las notificaciones"
+          value={notificationsEnabled}
+          onValueChange={handleToggleNotifications}
+        />
+      </View>
+
+      {/* Tipos de notificaciones */}
+      {notificationsEnabled && (
+        <>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tipos de Notificaciones</Text>
+            
+            <SettingToggle
+              icon="school"
+              title="Recordatorios de Clases"
+              subtitle="1 hora antes de cada clase"
+              value={classReminders}
+              onValueChange={handleToggleClassReminders}
+            />
+            
+            <SettingToggle
+              icon="checkbox"
+              title="Recordatorios de Tareas"
+              subtitle="1 día antes del vencimiento"
+              value={taskReminders}
+              onValueChange={handleToggleTaskReminders}
+            />
+            
+            <SettingToggle
+              icon="sunny"
+              title="Resumen Diario"
+              subtitle="Agenda del día cada mañana (7:00 AM)"
+              value={dailySummary}
+              onValueChange={handleToggleDailySummary}
+            />
+          </View>
+
+          {/* Canales */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Canales</Text>
+            
+            <SettingToggle
+              icon="phone-portrait"
+              title="Notificaciones Push"
+              subtitle="Alertas en tu dispositivo"
+              value={pushNotifications}
+              onValueChange={async (value) => {
+                setPushNotifications(value);
+                await saveSettings({ pushNotifications: value });
+              }}
+            />
+            
+            <SettingToggle
+              icon="mail"
+              title="Notificaciones por Email"
+              subtitle="Recibir recordatorios por correo"
+              value={emailNotifications}
+              onValueChange={async (value) => {
+                setEmailNotifications(value);
+                await saveSettings({ emailNotifications: value });
+              }}
+            />
+          </View>
+
+          {/* Tiempos de recordatorio */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tiempo de Anticipación</Text>
+            
+            <SettingItem
+              icon="time"
+              title="Clases"
+              subtitle={`${classReminderTime} minutos antes`}
+              onPress={() => {
+                // TODO: Abrir selector de tiempo
+              }}
+            />
+            
+            <SettingItem
+              icon="calendar"
+              title="Tareas"
+              subtitle={`${taskReminderTime} horas antes`}
+              onPress={() => {
+                // TODO: Abrir selector de tiempo
+              }}
+            />
+          </View>
+        </>
+      )}
+
+      {/* Acciones */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Acciones</Text>
+        
+        <ActionButton
+          icon="flash"
+          title="Enviar Notificación de Prueba"
+          subtitle="Verificar que todo funciona"
+          onPress={handleTestNotification}
+          color={colors.color_palette_1.lineArt_Purple}
+        />
+        
+        <ActionButton
+          icon="list"
+          title="Ver Notificaciones Programadas"
+          subtitle={`${scheduledCount} notificaciones activas`}
+          onPress={handleViewScheduled}
+          color="#3b82f6"
+        />
+        
+        <ActionButton
+          icon="trash"
+          title="Cancelar Todas"
+          subtitle="Eliminar notificaciones programadas"
+          onPress={handleClearAllNotifications}
+          color="#ef4444"
+        />
+      </View>
+
+      {/* Información */}
+      <View style={styles.infoCard}>
+        <Ionicons name="information-circle" size={24} color={colors.color_palette_1.lineArt_Purple} />
+        <Text style={styles.infoText}>
+          Las notificaciones de clases se programan automáticamente 1 hora antes del inicio. 
+          Las notificaciones de tareas se envían 24 horas antes del vencimiento.
+        </Text>
+      </View>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
   );
 }
+
+const SettingToggle = ({ icon, title, subtitle, value, onValueChange }) => (
+  <View style={styles.settingItem}>
+    <View style={styles.settingItemLeft}>
+      <View style={styles.iconContainer}>
+        <Ionicons name={icon} size={22} color={colors.color_palette_1.lineArt_Purple} />
+      </View>
+      <View style={styles.settingItemText}>
+        <Text style={styles.settingItemTitle}>{title}</Text>
+        {subtitle && (
+          <Text style={styles.settingItemSubtitle}>{subtitle}</Text>
+        )}
+      </View>
+    </View>
+    <Switch
+      value={value}
+      onValueChange={onValueChange}
+      trackColor={{ false: '#d1d1d1', true: colors.color_palette_1.lineArt_Purple + '80' }}
+      thumbColor={value ? colors.color_palette_1.lineArt_Purple : '#f4f3f4'}
+      ios_backgroundColor="#d1d1d1"
+    />
+  </View>
+);
+
+const SettingItem = ({ icon, title, subtitle, onPress }) => (
+  <TouchableOpacity style={styles.settingItem} onPress={onPress}>
+    <View style={styles.settingItemLeft}>
+      <View style={styles.iconContainer}>
+        <Ionicons name={icon} size={22} color={colors.color_palette_1.lineArt_Purple} />
+      </View>
+      <View style={styles.settingItemText}>
+        <Text style={styles.settingItemTitle}>{title}</Text>
+        {subtitle && (
+          <Text style={styles.settingItemSubtitle}>{subtitle}</Text>
+        )}
+      </View>
+    </View>
+    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+  </TouchableOpacity>
+);
+
+const ActionButton = ({ icon, title, subtitle, onPress, color }) => (
+  <TouchableOpacity style={styles.actionButton} onPress={onPress}>
+    <View style={[styles.actionIconContainer, { backgroundColor: color + '15' }]}>
+      <Ionicons name={icon} size={24} color={color} />
+    </View>
+    <View style={styles.actionContent}>
+      <Text style={styles.actionTitle}>{title}</Text>
+      {subtitle && <Text style={styles.actionSubtitle}>{subtitle}</Text>}
+    </View>
+    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
-  header: {
-    backgroundColor: colors.color_palette_1.lineArt_Purple,
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+
+  // Header
+    header: {
+      backgroundColor: colors.color_palette_1.lineArt_Purple,
+      paddingTop: Platform.OS === 'ios' ? 60 : 40,
+      paddingBottom: 20,
+      paddingHorizontal: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      bottom: 20,
+      elevation: 4,
+    },
+    headerTitle: {
+      fontSize: 28,
+      fontFamily: 'poppins-bold',
+      color: '#fff',
+    },
+
+  // Warning Banner
+  warningBanner: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    margin: 20,
+    padding: 15,
+    borderRadius: 12,
+    gap: 12,
   },
-  backButton: {
-    marginRight: 15,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+  warningText: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
+  warningTitle: {
+    fontSize: 15,
+    fontFamily: 'poppins-semibold',
+    color: '#92400e',
+    marginBottom: 2,
   },
+  warningSubtitle: {
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#92400e',
+  },
+
+  // Stats
+  statsCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 32,
+    fontFamily: 'poppins-bold',
+    color: colors.color_palette_1.lineArt_Purple,
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 14,
+    fontFamily: 'poppins-medium',
+    color: '#666',
+    marginTop: 4,
+  },
+
+  // Section
   section: {
     backgroundColor: '#fff',
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
-    marginBottom: 15,
+    fontFamily: 'poppins-bold',
+    color: '#333',
+    marginBottom: 10,
+    paddingHorizontal: 5,
   },
-  settingRow: {
+
+  // Setting Item
+  settingItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
+    paddingHorizontal: 5,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  settingInfo: {
+  settingItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  settingText: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#2c3e50',
-  },
-  settingDescription: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 2,
-  },
-  reminderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingLeft: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  reminderLabel: {
-    fontSize: 15,
-    color: '#666',
-  },
-  notificationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  notificationIcon: {
+  iconContainer: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    backgroundColor: colors.color_palette_1.lineArt_Purple + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  notificationContent: {
+  settingItemText: {
     flex: 1,
   },
-  notificationTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2c3e50',
+  settingItemTitle: {
+    fontSize: 15,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
     marginBottom: 2,
   },
-  notificationBody: {
+  settingItemSubtitle: {
     fontSize: 13,
+    fontFamily: 'poppins-regular',
     color: '#666',
-    marginBottom: 4,
   },
-  notificationTime: {
-    fontSize: 12,
-    color: '#999',
-  },
-  notificationCount: {
-    fontSize: 13,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 10,
-  },
+
+  // Action Button
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    marginBottom: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  actionButtonText: {
+  actionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
     fontSize: 15,
-    color: colors.color_palette_1.lineArt_Purple,
-    marginLeft: 10,
-    fontWeight: '500',
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+    marginBottom: 2,
   },
-  dangerButton: {
-    backgroundColor: '#fee',
+  actionSubtitle: {
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#666',
   },
-  dangerText: {
-    color: '#e74c3c',
+
+  // Info Card
+  infoCard: {
+    flexDirection: 'row',
+    backgroundColor: colors.color_palette_1.lineArt_Purple + '10',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 15,
+    borderRadius: 12,
+    gap: 12,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#333',
+    lineHeight: 20,
   },
 });

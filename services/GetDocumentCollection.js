@@ -14,4 +14,5 @@ export const getDocumentCollection = async (collectionName) => {
     //console.error(`Error al obtener los documentos de ${collectionName}:`, error);
     return [];
   }
+  
 };

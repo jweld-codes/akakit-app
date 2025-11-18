@@ -9,6 +9,8 @@ export default function SliderTasks() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
+
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);

@@ -1,43 +1,52 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import Clases from '../../components/Clases/Clases';
+import AddTask from '../../components/Home/CRUD/AddTask';
 import Header from '../../components/Templates/Header';
 import UtilsTabTopBlack from '../../components/Templates/UtilsTabTopBlack';
-//import ClassModal from '../../components/Clases/ClassModal';
-
 import ClassModal from '../../modals/ClassModal';
-import '../global.css';
 
-export default function clase() {
+export default function Clase() {
   const [showClassModal, setShowClassModal] = useState(false);
   const [classIdModal, setClassIdModal] = useState(null);
+  const [showAddTask, setShowAddTask] = useState(false);
 
-  const handleOpenClassModal = useCallback(() => {
-      setShowClassModal(true);
-    }, []);
+  const handleModalIdPress = useCallback((claseId) => {
+    setClassIdModal(claseId);
+    setShowClassModal(true);
+  }, []);
 
   const handleCloseClassModal = useCallback(() => {
-      setShowClassModal(false);
-    }, []);
+    setShowClassModal(false);
+  }, []);
 
-      const handleModalIdPress = useCallback((claseId) => {
-      //console.log('ID recibido en handleModalIdPress:', claseId); // Debug
-      setClassIdModal(claseId);
-      setShowClassModal(true);
-    }, []);
+  const handleOpenAddTask = useCallback(() => {
+    setShowAddTask(true);
+  }, []);
+
+  const handleCloseAddTask = useCallback(() => {
+    setShowAddTask(false);
+  }, []);
+
   return (
-    <View>
+    <View style={{ flex: 1 }}>
       <UtilsTabTopBlack />
-        <Header />
-        <Clases
-          onModalPress={handleModalIdPress}
-         />
-        <ClassModal
-          visible={showClassModal}
-          classIdModal ={classIdModal}
-          onClose={handleCloseClassModal}
-        />
+      <Header />
 
+      <Clases onModalPress={handleModalIdPress} />
+
+      <ClassModal
+        visible={showClassModal}
+        classIdModal={classIdModal}
+        onClose={handleCloseClassModal}
+        onAddTask={handleOpenAddTask}
+      />
+
+      {showAddTask && (
+        <AddTask
+          onClose={handleCloseAddTask}
+        />
+      )}
     </View>
-  )
+  );
 }

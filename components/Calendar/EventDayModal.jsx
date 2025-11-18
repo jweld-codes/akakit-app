@@ -42,7 +42,7 @@ export default function EventDayModal({ visible, selectedDate, onClose }) {
     await updateDoc(ref, { estado: 'Archivado' });
     console.log('Evento archivado');
 
-    setEvents(prev => prev.filter(e => e.id !== id)); // 💥 quita el evento archivado
+    setEvents(prev => prev.filter(e => e.id !== id));
   } catch (error) {
     console.error('Error al archivar:', error);
   }
@@ -54,7 +54,7 @@ const handleDelete = async (id) => {
     await deleteDoc(ref);
     console.log('Evento eliminado');
 
-    setEvents(prev => prev.filter(e => e.id !== id)); // 💥 quita el evento eliminado
+    setEvents(prev => prev.filter(e => e.id !== id));
   } catch (error) {
     console.error('Error al eliminar:', error);
   }

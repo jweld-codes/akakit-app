@@ -6,8 +6,14 @@ export default{
         alignItems: 'center',
     },
 
-    centerObjects:{
+    textCenterObjects:{
         textAlign:'center',
+        justifyContent:'center',
+        alignItems:'center'  
+    },
+
+    centerObjects:{
+        flexDirection: 'column',
         justifyContent:'center',
         alignItems:'center'  
     },
