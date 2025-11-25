@@ -1,4 +1,3 @@
-// components/Modals/TaskDetailModal.jsx
 import { Ionicons } from '@expo/vector-icons';
 import {
   Linking,

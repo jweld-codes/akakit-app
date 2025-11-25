@@ -1,10 +1,16 @@
 // app/(tabs)/calendar.jsx
+import { Link } from "expo-router";
 import { useCallback, useState } from 'react';
-import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import CalendarView from '../../components/Calendar/CalendarView';
 import EventDayModal from '../../components/Calendar/EventDayModal';
 import UpcomingEventsList from '../../components/Calendar/UpcoomingEventsList';
+import SearchBar from '../../components/SearchBar';
+
+import { Ionicons } from '@expo/vector-icons';
+import global from "../../constants/global";
+
 
 export default function CalendarScreen() {
   
@@ -13,7 +19,6 @@ export default function CalendarScreen() {
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-   
   const handleDayPress = useCallback((date, day) => {
     setSelectedDate(date);
     setShowDayModal(true);
@@ -38,6 +43,7 @@ export default function CalendarScreen() {
         <StatusBar barStyle="dark-content" />
         
         <View style={styles.container}>
+          
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Calendario</Text>
@@ -48,6 +54,26 @@ export default function CalendarScreen() {
                 year: 'numeric' 
               })}
             </Text>
+
+            {/* SearchBar */}
+            <View style={styles.searchContainer}>
+               <View srtyle={global.aside}>
+                  
+                  <Link href="/QADir/Eventos/ArchivedEventsScreen" asChild>
+                    <TouchableOpacity style={styles.menuItem}>
+                      <Ionicons name="archive-outline" size={22} color="#77065fff" />
+                    </TouchableOpacity>
+                  </Link>
+
+                  <SearchBar 
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="Buscar eventos..."
+                    style={styles.searchBarContainer}
+                    inputStyle={styles.searchBarInput}
+                  />
+               </View>
+            </View>
           </View>
 
           <ScrollView 
@@ -59,15 +85,6 @@ export default function CalendarScreen() {
               <CalendarView onDayPress={handleDayPress} />
             </View>
 
-            {/* SearchBar 
-            <View style={styles.searchContainer}>
-              <SearchBar 
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Buscar eventos..."
-              />
-            </View>*/}
-
             {/* Lista de próximos eventos */}
             <View style={styles.eventsListContainer}>
               <UpcomingEventsList searchQuery={searchQuery} />
@@ -77,21 +94,13 @@ export default function CalendarScreen() {
             <View style={{ height: 100 }} />
           </ScrollView>
 
-          {/* Floating Action Button 
-          <FloatingActionButton onPress={handleOpenBottomSheet} />*/}
+            {/* Modal de eventos del día */}
+            <EventDayModal
+              visible={showDayModal}
+              selectedDate={selectedDate}
+              onClose={handleCloseDayModal}
+            />
 
-          {/* Modal de eventos del día */}
-          <EventDayModal
-            visible={showDayModal}
-            selectedDate={selectedDate}
-            onClose={handleCloseDayModal}
-          />
-
-          {/* Bottom Sheet para agregar evento/tarea 
-          <AddItemBottomSheet
-            isVisible={showBottomSheet}
-            onClose={handleCloseBottomSheet}
-          />*/}
         </View>
       </SafeAreaView>
     </GestureHandlerRootView>
@@ -115,6 +124,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  menuItem: {
+    top: 10,
+    right: 10
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -135,13 +148,27 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
   },
+  
   searchContainer: {
     paddingHorizontal: 15,
     paddingTop: 15,
   },
+  
   eventsListContainer: {
     paddingHorizontal: 15,
     paddingTop: 10,
     paddingBottom: 20,
+  },
+
+  //SeacrhBar
+  searchBarContainer: {
+    backgroundColor: 'rgba(231, 231, 231, 0.95)',
+    marginTop: -25,
+    marginBottom: 5,
+    left: 30,
+    width: 300
+  },
+  searchBarInput: {
+    fontFamily: 'poppins-regular',
   },
 });

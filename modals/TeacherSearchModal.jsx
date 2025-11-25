@@ -1,38 +1,73 @@
 // components/Shared/TeacherSearchModal.jsx
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    FlatList,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import TeacherDetailModal from '../components/Docentes/Docente';
 import colors from '../constants/colors';
 import global from '../constants/global';
-
-const TeacherSearchModal = ({ visible, onClose, teachers, onSelectTeacher }) => {
+import { getDocumentCollection } from '../services/GetDocumentCollection';
+const TeacherSearchModal = ({ 
+  visible, 
+  onClose, 
+  teachers, 
+  onSelectTeacher,
+  mode = 'select'
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredTeachers, setFilteredTeachers] = useState([]);
+  const [docente, setDocente] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const router = useRouter();
+
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      setFilteredTeachers(teachers);
+      fetchData();
     }
-  }, [visible, teachers]);
+  }, [visible]);
 
-  const handleSearch = (query) => {a
+  const fetchData = async () => {
+    setLoading(true);
+    
+    try {
+      const docentesList = await getDocumentCollection("idDocentesCollection");
+      setDocente(docentesList);
+      setFilteredTeachers(docentesList);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+      setLoading(false);
+    }
+  };
+
+  const handleViewTeacher = (teacher) => {
+    setSelectedTeacher(teacher);
+    setShowDetailModal(true);
+  };
+
+  const handleSearch = (query) => {
     setSearchQuery(query);
     
     if (query.trim() === '') {
-      setFilteredTeachers(teachers);
+      setFilteredTeachers(docente);
       return;
     }
 
-    const filtered = teachers.filter(teacher => 
+    const filtered = docente.filter(teacher => 
       teacher.docente_fullName
         .toLowerCase()
         .includes(query.toLowerCase())
@@ -42,42 +77,107 @@ const TeacherSearchModal = ({ visible, onClose, teachers, onSelectTeacher }) => 
   };
 
   const handleSelectTeacher = (teacher) => {
-    onSelectTeacher(teacher);
-    setSearchQuery('');
-    setFilteredTeachers(teachers);
-    onClose();
+    if (mode === 'select' && onSelectTeacher) {
+      onSelectTeacher(teacher);
+      handleClose();
+    }
   };
 
   const handleClose = () => {
     setSearchQuery('');
-    setFilteredTeachers(teachers);
+    setFilteredTeachers(docente);
     onClose();
+  };
+
+  const handleEditTeacher = (teacher) => {
+  router.push({
+    pathname: "/QADir/Professors/EditProfessorScreen",
+    params: { teacherId: teacher.docente_id }
+  });
+};
+
+  const handleDeleteTeacher = (teacher) => {
+    Alert.alert(
+      "Eliminar Docente",
+      `¿Estás seguro que deseas eliminar a ${teacher.docente_fullName}?`,
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Aquí va tu lógica para eliminar el docente
+              // await deleteDocument("idDocentesCollection", teacher.docente_id);
+              
+              // Recargar la lista después de eliminar
+              await fetchData();
+              
+              Alert.alert("Éxito", "Docente eliminado correctamente");
+            } catch (error) {
+              console.error('Error al eliminar docente:', error);
+              Alert.alert("Error", "No se pudo eliminar el docente");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleAddTeacher = () => {
+    if (mode === 'manage') {
+      handleClose();
+      router.push("/QADir/Professors/AddProfessorScreen");
+    }
   };
 
   const renderTeacherItem = ({ item }) => (
     <TouchableOpacity
       style={styles.teacherItem}
       onPress={() => handleSelectTeacher(item)}
-      activeOpacity={0.7}
+      activeOpacity={mode === 'select' ? 0.7 : 1}
+      disabled={mode === 'manage'}
     >
+      
       <View style={styles.teacherIconContainer}>
         <Ionicons name="person-circle" size={40} color={colors.color_palette_1.lineArt_Purple} />
       </View>
+      
       <View style={styles.teacherInfo}>
         <Text style={styles.teacherName}>{item.docente_fullName}</Text>
         {item.email && (
           <Text style={styles.teacherEmail}>{item.email}@usap.edu</Text>
         )}
         {item.rating && (
-            <>
-            <View style={[global.notSpaceBetweenObjects]}>
-                <Ionicons name="star" size={15} color={colors.color_palette_1.lineArt_Purple} />
-                <Text style={styles.teacherSpecialty}>{item.rating}</Text>
-            </View>
-            </>
+          <View style={[global.notSpaceBetweenObjects]}>
+            <Ionicons name="star" size={15} color={colors.color_palette_1.lineArt_Purple} />
+            <Text style={styles.teacherSpecialty}>{item.rating}</Text>
+          </View>
         )}
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#ccc" />
+
+      {mode === 'select' ? (
+        <Ionicons name="chevron-forward" size={20} color="#ccc" />
+      ) : (
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.editButton]}
+            onPress={() => handleEditTeacher(item)}
+          >
+            <Ionicons name="pencil" size={18} color="#fff" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={() => handleViewTeacher(item)}
+          >
+            <Ionicons name="information-circle" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -108,10 +208,23 @@ const TeacherSearchModal = ({ visible, onClose, teachers, onSelectTeacher }) => 
             onPress={handleClose}
             style={styles.closeButton}
           >
-            <Ionicons name="close" size={28} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Buscar Docente</Text>
-          <View style={{ width: 40 }} />
+          
+          <Text style={styles.headerTitle}>
+            {mode === 'select' ? 'Seleccionar Docente' : 'Gestionar Docentes'}
+          </Text>
+
+          {mode === 'manage' && (
+            <TouchableOpacity 
+              onPress={handleAddTeacher}
+              style={styles.filterButton}
+            >
+              <Ionicons name="add-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+          )}
+          
+          {mode === 'select' && <View style={{ width: 40 }} />}
         </View>
 
         {/* Search Bar */}
@@ -146,8 +259,16 @@ const TeacherSearchModal = ({ visible, onClose, teachers, onSelectTeacher }) => 
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
+          refreshing={loading}
+          onRefresh={fetchData}
         />
       </View>
+
+      <TeacherDetailModal
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        teacher={selectedTeacher}
+      />
     </Modal>
   );
 };
@@ -186,6 +307,14 @@ const styles = StyleSheet.create({
     fontFamily: 'poppins-semibold',
     color: '#fff',
   },
+  filterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
   // Search
   searchContainer: {
@@ -214,14 +343,7 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
   },
-  resultsCount: {
-    marginTop: 12,
-  },
-  resultsCountText: {
-    fontSize: 13,
-    fontFamily: 'poppins-medium',
-    color: '#666',
-  },
+
   // List
   listContent: {
     padding: 20,
@@ -260,9 +382,29 @@ const styles = StyleSheet.create({
   },
   teacherSpecialty: {
     fontSize: 12,
-    left:5,
+    left: 5,
     fontFamily: 'poppins-regular',
     color: '#999',
+  },
+
+  // Action Buttons
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  editButton: {
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+  },
+  deleteButton: {
+    backgroundColor:  colors.color_palette_1.lineArt_Purple,
   },
 
   // Empty State

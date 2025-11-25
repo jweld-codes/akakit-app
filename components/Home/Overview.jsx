@@ -24,7 +24,7 @@ import { getUpcomingEvents } from '../../services/GetUpcomingEvents';
 import SliderTasks from '../Home/SliderTasks';
 import ClassTodayCard from '../Templates/ClassTodayCard';
 import ClassUpcomingCard from '../Templates/ClassUpcomingCard';
-import EventCard from '../Templates/EventCards';
+import EventCards from '../Templates/EventCards';
 import QuickActionsCards_OverviewTabs from "../Templates/QuickActionsButtons/QuickActionsCards_OverviewTabs";
 
 const screenWidth = Dimensions.get("window").width;
@@ -466,7 +466,7 @@ const handleScheduleEnCurso = async () => {
               contentContainerStyle={styles.horizontalScrollContent}
             >
               {upcomingEvents.map(evento => (
-                <EventCard key={evento.id} evento={evento} />
+                <EventCards key={evento.evento_id} evento={evento} />
               ))}
             </ScrollView>
           )}

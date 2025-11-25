@@ -149,7 +149,6 @@ export default function AddEvent() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Nuevo Evento</Text>
-          <Text style={styles.headerSubtitle}>ID del evento: #{eventoId}</Text>
         </View>
       </View>
 
@@ -303,7 +302,7 @@ export default function AddEvent() {
         </View>
 
         {/* Enlaces y recursos */}
-        <View style={styles.section}>
+        <View style={[styles.section, { marginBottom: 100 }]}>
           <View style={styles.sectionHeader}>
             <Ionicons name="link" size={24} color={colors.color_palette_1.lineArt_Purple} />
             <Text style={styles.sectionTitle}>Enlaces y Recursos</Text>
@@ -333,35 +332,6 @@ export default function AddEvent() {
               autoCapitalize="none"
               placeholderTextColor="#999"
             />
-          </View>
-        </View>
-
-        {/* Clase asociada */}
-        <View style={[styles.section, { marginBottom: 100 }]}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="school" size={24} color={colors.color_palette_1.lineArt_Purple} />
-            <Text style={styles.sectionTitle}>Clase Asociada</Text>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>¿Proviene de alguna clase?</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker 
-                selectedValue={eventoClaseId} 
-                onValueChange={setEventoClaseId}
-                style={styles.picker}
-                itemStyle={styles.pickerItem}
-              >
-                <Picker.Item label="Sin clase asociada" value="N/A" />
-                {clase.map((doc, index) => (
-                  <Picker.Item 
-                    key={index} 
-                    label={doc.class_name} 
-                    value={doc.id || doc.clase_id} 
-                  />
-                ))}
-              </Picker>
-            </View>
           </View>
         </View>
       </ScrollView>

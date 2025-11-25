@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from "expo-router";
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import SearchBar from '../../components/SearchBar';
 import colors from '../../constants/colors';
 import global from '../../constants/global';
-import ClassModal from '../../modals/ClassModal';
+import FlowchartClassModal from '../../modals/FlowchartClassModal';
+
+import { Animated } from 'react-native';
 import { getClassByName } from "../../services/GetClassByName";
 import { getClassDocumentCollection } from '../../services/GetClassDocumentCollection';
 import { getPeriodById } from "../../services/GetPeriodById";
 import { getRequiredClass } from "../../services/GetRequiredClass";
-
 
 export default function CourseFlowchart({ onClose }) {
   const router = useRouter();
@@ -33,16 +34,46 @@ export default function CourseFlowchart({ onClose }) {
   const [selectedClassType, setSelectedClassType] = useState('Todos');
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [showRequiredModal, setShowRequiredModal] = useState(false);
-  const [showClassModal, setShowClassModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [loadingClasses, setLoadingClasses] = useState(true);
-  const [selectedClassFind, setSelectedClassFind] = useState(null);
   
   // Modal de clase
+  const [showClassModal, setShowClassModal] = useState(false);
+  //const [showClassFlowChartModal, setShowClassFlowChartModal] = useState(false);
+
+  const [selectedClassFind, setSelectedClassFind] = useState(null);
+  //const [selectedClassFindFlowChart, setSelectedClassFindFlowChart] = useState(null);
+  
   const [selectedClass, setSelectedClass] = useState(null);
+  //const [selectedClassFlowChart, setSelectedClassFlowChart] = useState(null);
+
   const [openChain, setOpenChain] = useState([]);
   const [loadingChain, setLoadingChain] = useState(false);
+
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const HEADER_MAX_HEIGHT = 260; // Altura con stats
+  const HEADER_MIN_HEIGHT = 140; // Altura sin stats
+  const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+    extrapolate: 'clamp',
+  });
+
+  const statsOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+    outputRange: [1, 0.5, 0],
+    extrapolate: 'clamp',
+  });
+
+  const statsTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [0, -20],
+    extrapolate: 'clamp',
+  });
 
 //logica de clases conectadas
 const loadOpeningChain = async (classId) => {
@@ -134,10 +165,8 @@ useEffect(() => {
       const requiredClassTemp = {};
       const nombreClassTemp = {};
       const docentesTemp = {};
-
-     
-
       const classNameToIdMap = {};
+
       classFetchId.forEach(cls => {
         if (cls.class_name) {
           classNameToIdMap[cls.class_name] = cls.clase_id;
@@ -193,7 +222,7 @@ useEffect(() => {
           }
         }
       }
-
+ 
       setClasses(classList);
       setClassDataId(nombreClassTemp);
       setPeriods(periodsTemp);
@@ -298,6 +327,8 @@ useEffect(() => {
         return '#9e9e9e';
     }
   };
+
+  
 
   const [loadClass, setloadClass] = useState(true);
   const loadClassRefresh = async () => {
@@ -533,153 +564,168 @@ useEffect(() => {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" />
         
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Text style={styles.headerTitle}>Flujograma de Cursos</Text>
+        {/* Animated Header */}
+      <Animated.View style={[styles.header, { height: headerHeight }]}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity 
+            onPress={() => router.push("/QADir/Curso/AddClassCursoScreen")}
+            style={styles.filterButton}
+          >
+            <Ionicons name="add-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Flujograma de Cursos</Text>
 
-            <TouchableOpacity 
-              onPress={() => setShowFiltersModal(true)}
-              style={styles.filterButton}
-            >
-              <Ionicons name="filter" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* SearchBar */}
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Buscar por nombre, código o tipo..."
-            style={styles.searchBarContainer}
-            inputStyle={styles.searchBarInput}
-          />
-
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Ionicons name="school-outline" size={20} color="#fff" />
-              <Text style={styles.statValue}>{classes.length}</Text>
-              <Text style={styles.statLabel}>Clases Totales</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
-              <Text style={styles.statValue}>
-                {classes.filter(c => c.fc_enrollment === 'Cursada').length}
-              </Text>
-              <Text style={styles.statLabel}>Cursadas</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <Ionicons name="time-outline" size={20} color="#fff" />
-              <Text style={styles.statValue}>
-                {classes.filter(c => c.fc_enrollment === 'En Curso').length}
-              </Text>
-              <Text style={styles.statLabel}>En Curso</Text>
-            </View>
-          </View>
-
-          {/* Active Filters */}
-          {(searchQuery || selectedPeriod !== 'Todos' || selectedYear !== 'Todos' || selectedClassType !== 'Todos' || selectedEnroll !== 'Todos' || selectedStatus !== 'Todos') && (
-            <View style={styles.activeFilters}>
-              <Text style={styles.activeFiltersLabel}>Filtros activos:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.activeFiltersList}>
-                  {searchQuery && (
-                    <View style={styles.activeFilterChip}>
-                      <Ionicons name="search" size={12} color="#fff" />
-                      <Text style={styles.activeFilterText}>
-                        "{searchQuery}"
-                      </Text>
-                      <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <Ionicons name="close-circle" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {selectedPeriod !== 'Todos' && (
-                    <View style={styles.activeFilterChip}>
-                      <Text style={styles.activeFilterText}>
-                        Periodo {periods[selectedPeriod]?.id || selectedPeriod}
-                      </Text>
-                      <TouchableOpacity onPress={() => setSelectedPeriod('Todos')}>
-                        <Ionicons name="close-circle" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {selectedYear !== 'Todos' && (
-                    <View style={styles.activeFilterChip}>
-                      <Text style={styles.activeFilterText}>Año {selectedYear}</Text>
-                      <TouchableOpacity onPress={() => setSelectedYear('Todos')}>
-                        <Ionicons name="close-circle" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {selectedEnroll !== 'Todos' && (
-                    <View style={styles.activeFilterChip}>
-                      <Text style={styles.activeFilterText}>{selectedEnroll}</Text>
-                      <TouchableOpacity onPress={() => setSelectedEnroll('Todos')}>
-                        <Ionicons name="close-circle" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {selectedStatus !== 'Todos' && (
-                    <View style={styles.activeFilterChip}>
-                      <Text style={styles.activeFilterText}>{selectedStatus}</Text>
-                      <TouchableOpacity onPress={() => setSelectedStatus('Todos')}>
-                        <Ionicons name="close-circle" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                  {selectedClassType !== 'Todos' && (
-                    <View style={styles.activeFilterChip}>
-                      <Text style={styles.activeFilterText}>{selectedClassType}</Text>
-                      <TouchableOpacity onPress={() => setSelectedClassType('Todos')}>
-                        <Ionicons name="close-circle" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              </ScrollView>
-            </View>
-          )}
+          <TouchableOpacity 
+            onPress={() => setShowFiltersModal(true)}
+            style={styles.filterButton}
+          >
+            <Ionicons name="filter" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
 
-        {/* Content */}
-        {filteredClasses.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="git-network-outline" size={80} color="#ccc" />
-            <Text style={styles.emptyTitle}>No hay clases para mostrar</Text>
-            <Text style={styles.emptySubtitle}>
-              Ajusta los filtros o agrega nuevas clases
-            </Text>
-          </View>
-        ) : (
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={global.aside}>
-              <View style={styles.sectionContainer}>
-            </View>
-              <View  style={global.notSpaceBetweenObjects}>
-                <TouchableOpacity 
-                  onPress={loadClassRefresh}
-                  style={styles.refreshButton}
-                >
-                  <Ionicons name="refresh" size={20} color="#782170" />
-                </TouchableOpacity>
-                <Text>Refrescar</Text>
-              </View>
-            </View>
-        
-            {Object.entries(organizedClasses).map(([periodKey, classList]) =>
-              renderPeriodSection(periodKey, classList)
-            )}
-          </ScrollView>
-        )}
+        {/* SearchBar */}
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Buscar por nombre, código o tipo..."
+          style={styles.searchBarContainer}
+          inputStyle={styles.searchBarInput}
+        />
 
+        {/* Animated Stats - Se ocultan al hacer scroll */}
+        <Animated.View 
+          style={[
+            styles.statsRow,
+            {
+              opacity: statsOpacity,
+              transform: [{ translateY: statsTranslateY }],
+            }
+          ]}
+        >
+          <View style={styles.statCard}>
+            <Ionicons name="school-outline" size={20} color="#fff" />
+            <Text style={styles.statValue}>{classes.length}</Text>
+            <Text style={styles.statLabel}>Clases Totales</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
+            <Text style={styles.statValue}>
+              {classes.filter(c => c.fc_enrollment === 'Cursada').length}
+            </Text>
+            <Text style={styles.statLabel}>Cursadas</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Ionicons name="time-outline" size={20} color="#fff" />
+            <Text style={styles.statValue}>
+              {classes.filter(c => c.fc_enrollment === 'En Curso').length}
+            </Text>
+            <Text style={styles.statLabel}>En Curso</Text>
+          </View>
+        </Animated.View>
+
+        {/* Active Filters permanece visible */}
+        {(searchQuery || selectedPeriod !== 'Todos' || selectedYear !== 'Todos' || selectedClassType !== 'Todos' || selectedEnroll !== 'Todos' || selectedStatus !== 'Todos') && (
+          <View style={styles.activeFilters}>
+            <Text style={styles.activeFiltersLabel}>Filtros activos:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.activeFiltersList}>
+                {searchQuery && (
+                  <View style={styles.activeFilterChip}>
+                    <Ionicons name="search" size={12} color="#fff" />
+                    <Text style={styles.activeFilterText}>"{searchQuery}"</Text>
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {selectedPeriod !== 'Todos' && (
+                  <View style={styles.activeFilterChip}>
+                    <Text style={styles.activeFilterText}>
+                      Periodo {periods[selectedPeriod]?.id || selectedPeriod}
+                    </Text>
+                    <TouchableOpacity onPress={() => setSelectedPeriod('Todos')}>
+                      <Ionicons name="close-circle" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {selectedYear !== 'Todos' && (
+                  <View style={styles.activeFilterChip}>
+                    <Text style={styles.activeFilterText}>Año {selectedYear}</Text>
+                    <TouchableOpacity onPress={() => setSelectedYear('Todos')}>
+                      <Ionicons name="close-circle" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {selectedEnroll !== 'Todos' && (
+                  <View style={styles.activeFilterChip}>
+                    <Text style={styles.activeFilterText}>{selectedEnroll}</Text>
+                    <TouchableOpacity onPress={() => setSelectedEnroll('Todos')}>
+                      <Ionicons name="close-circle" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {selectedStatus !== 'Todos' && (
+                  <View style={styles.activeFilterChip}>
+                    <Text style={styles.activeFilterText}>{selectedStatus}</Text>
+                    <TouchableOpacity onPress={() => setSelectedStatus('Todos')}>
+                      <Ionicons name="close-circle" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {selectedClassType !== 'Todos' && (
+                  <View style={styles.activeFilterChip}>
+                    <Text style={styles.activeFilterText}>{selectedClassType}</Text>
+                    <TouchableOpacity onPress={() => setSelectedClassType('Todos')}>
+                      <Ionicons name="close-circle" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+      </Animated.View>
+
+      {/* Content con Animated.ScrollView */}
+      {filteredClasses.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="git-network-outline" size={80} color="#ccc" />
+          <Text style={styles.emptyTitle}>No hay clases para mostrar</Text>
+          <Text style={styles.emptySubtitle}>
+            Ajusta los filtros o agrega nuevas clases
+          </Text>
+        </View>
+      ) : (
+        <Animated.ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
+        >
+          <View style={global.aside}>
+            <View style={styles.sectionContainer}></View>
+            <View style={global.notSpaceBetweenObjects}>
+              <TouchableOpacity 
+                onPress={loadClassRefresh}
+                style={styles.refreshButton}
+              >
+                <Ionicons name="refresh" size={20} color="#782170" />
+              </TouchableOpacity>
+              <Text>Refrescar</Text>
+            </View>
+          </View>
+      
+          {Object.entries(organizedClasses).map(([periodKey, classList]) =>
+            renderPeriodSection(periodKey, classList)
+          )}
+        </Animated.ScrollView>
+      )}
 
         <Modal
           visible={showRequiredModal}
@@ -1043,12 +1089,13 @@ useEffect(() => {
                   <Ionicons name="refresh" size={20} color="#fff" />
                   <Text style={styles.clearFiltersText}>Limpiar filtros</Text>
                 </TouchableOpacity>
+
               </ScrollView>
             </View>
           </View>
         </Modal>
 
-        {/* Class Modal */}
+        {/* Class Modal 
         <ClassModal
           visible={showClassModal}
           classIdModal={selectedClassFind}
@@ -1057,11 +1104,22 @@ useEffect(() => {
             setSelectedClass(null);
             fetchData();
           }}
-        />
+        />*/}
+
+        <FlowchartClassModal
+        visible={showClassModal}
+        classId={selectedClassFind}
+        onClose={() => {
+          setShowClassModal(false);
+          setSelectedClass(null);
+        }}
+        onRefresh={fetchData}
+      />
       </SafeAreaView>
     </GestureHandlerRootView>
   );
 }
+
 
 const styles = StyleSheet.create({
   refreshButton: {

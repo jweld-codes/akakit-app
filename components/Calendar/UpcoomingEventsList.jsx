@@ -1,11 +1,12 @@
 // components/Calendar/UpcomingEventsList.jsx
-import { Ionicons } from '@expo/vector-icons';
-import { Link } from "expo-router";
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import colors from '../../constants/colors';
 import { getUpcomingEvents } from '../../services/GetUpcomingEvents';
 import EventListItem from './EventListItem';
+
+import { Ionicons } from "@expo/vector-icons";
+
 
 export default function UpcomingEventsList({ searchQuery = '' }) {
   const [events, setEvents] = useState([]);
@@ -76,20 +77,21 @@ export default function UpcomingEventsList({ searchQuery = '' }) {
         />
       }
     >
-      <View>
-        <Link href="/" asChild>
-            <TouchableOpacity style={styles.menuItem}>
-              <Ionicons name="archive-outline" size={22} color="#77065fff" />
-            </TouchableOpacity>
-          </Link>
-        
-      </View>
-
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Próximos Eventos</Text>
-        <Text style={styles.headerCount}>
-          {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
-        </Text>
+
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            onPress={loadEvents}
+            style={styles.refreshButton}
+          >
+            <Ionicons name="refresh" size={20} color="#782170" />
+          </TouchableOpacity>
+          
+           <Text style={styles.headerCount}>
+            {filteredEvents.length} {filteredEvents.length === 1 ? 'evento' : 'eventos'}
+          </Text>
+        </View>
       </View>
 
       {filteredEvents.map((evento) => (
@@ -102,6 +104,14 @@ export default function UpcomingEventsList({ searchQuery = '' }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  refreshButton: {
+    padding: 4,
   },
   header: {
     flexDirection: 'row',

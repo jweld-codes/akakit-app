@@ -26,7 +26,7 @@ export default function TasksCard({ task, onRemove }) {
   setShowUpdateModal(true);
   };
 
-const handleDelete = async (task) => {
+  const handleDelete = async (task) => {
     Alert.alert(
       'Eliminar Tarea',
       `¿Estás seguro de eliminar "${task.tarea_titulo}"?`,
@@ -205,12 +205,15 @@ const handleDelete = async (task) => {
 
         {/* Botón de acción */}
         <View>
-          <TouchableOpacity onPress={() => handleTaskPress(task)} style={[styles.actionButton, { backgroundColor: header }]}>
+          <TouchableOpacity 
+          onPress={() => handleTaskPress(task)} 
+          style={[styles.actionButton, { backgroundColor: header }]}>
           
           <Text style={[styles.actionButtonText, { color: color }]}>
             Ver Tarea
           </Text>
           </TouchableOpacity>
+
           <TaskDetailModal
             visible={showTaskModal}
             task={selectedTask}
@@ -219,6 +222,7 @@ const handleDelete = async (task) => {
               setSelectedTask(null);
             }}
             onEdit={handleEdit}
+            onDelete={handleDelete}
             />
           <UpdateTask
             visible={showUpdateModal}

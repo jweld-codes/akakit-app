@@ -265,11 +265,9 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
     );
   };
 
-  // FUNCIÓN PARA DETECTAR DEPENDENCIAS CIRCULARES
   const checkCircularDependency = () => {
     if (!selectedPrerequisite || !selectedOpensClass) return false;
 
-    // Verificar si la clase prerequisito tiene como prerequisito a la clase que abre esta
     const prerequisiteOfPrerequisite = flowchartClasses.find(
       fc => fc.fc_id === selectedPrerequisite.fc_open_class_id
     );
@@ -278,13 +276,12 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
       return true;
     }
 
-    // Verificar cadenas más largas (máximo 3 niveles)
     let current = selectedPrerequisite;
     let depth = 0;
     const visited = new Set();
 
     while (current && depth < 3) {
-      if (visited.has(current.fc_id)) return true; // Ciclo detectado
+      if (visited.has(current.fc_id)) return true; 
       visited.add(current.fc_id);
 
       if (current.fc_id === selectedOpensClass?.fc_id) return true;
@@ -300,7 +297,6 @@ export default function UpdateClass({ visible, classData, docenteData, onClose, 
     if (!classData?.clase_id) return;
     
     try {
-      // 1. Actualizar en idClaseCollection
       const classSnap = await getDocs(collection(db, "idClaseCollection"));
       const claseDoc = classSnap.docs.find(doc => {
         const data = doc.data();

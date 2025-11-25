@@ -1,25 +1,41 @@
 // components/EventCard.jsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import colors from '../../constants/colors';
+import EventDetailModal from '../../modals/EventDetailModal';
+import EventEditModal from '../../modals/EventEditModal';
 import { formatEventDate, getDaysUntilEvent } from '../../services/GetUpcomingEvents';
 
-export default function EventCard({ evento }) {
+export default function EventCards({ evento }) {
   const router = useRouter();
 
-  const handlePress = () => {
-    // Navegar a la pantalla de detalle del evento
-    router.push(`/events/${evento.id}`);
+  const [selectedEvento, setSelectedEvento] = useState(null);
+  const [showEventoModal, setShowEventoModal] = useState(false);
+  
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [eventoToEdit, setEventoToEdit] = useState(null);
+  
+
+  const handleEventPress = (evento) => {
+    setSelectedEvento(evento);
+    setShowEventoModal(true);
+  };
+
+  const handleEdit = (evento) => {
+    setEventoToEdit(evento);
+    setShowUpdateModal(true);
   };
 
   return (
+  <>
     <TouchableOpacity 
       style={styles.card} 
-      onPress={handlePress}
+      //onPress={() => handleEventPress(evento)}
       activeOpacity={0.7}
     >
+
       {/* Imagen del evento */}
       {evento.evento_img_url && evento.evento_img_url !== "N/A" ? (
         <Image 
@@ -54,6 +70,10 @@ export default function EventCard({ evento }) {
           {evento.evento_titulo}
         </Text>
 
+        <Text style={styles.carddescription} numberOfLines={2}>
+          {evento.evento_descripcion}
+        </Text>
+
         {/* Fecha y hora */}
         <View style={styles.dateContainer}>
           <Ionicons 
@@ -79,6 +99,33 @@ export default function EventCard({ evento }) {
         )}
       </View>
     </TouchableOpacity>
+
+    
+    <EventDetailModal
+      visible={showEventoModal}
+      evento={selectedEvento}
+      onClose={() => {
+        setShowEventoModal(false);
+        setSelectedEvento(null);
+      }}
+      onEdit={() => handleEdit(selectedEvento)}
+      //onArchive={() => handleArchive(selectedEvento)}
+    />
+
+    <EventEditModal
+      visible={showUpdateModal}
+      evento={eventoToEdit}
+      onClose={() => {
+          setShowUpdateModal(false);
+          setEventoToEdit(null);
+      }}
+      onUpdated={() => {
+          setShowUpdateModal(false);
+          setEventoToEdit(null);
+      }}
+    />
+
+  </>
   );
 }
 

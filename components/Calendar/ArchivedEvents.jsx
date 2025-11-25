@@ -10,6 +10,7 @@ import EventEditModal from '../../modals/EventEditModal';
 export default function ArchivedEvents() {
   const [archivedEvents, setArchivedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -26,6 +27,8 @@ export default function ArchivedEvents() {
         ...doc.data(),
         evento_fecha_date: doc.data().evento_fecha?.toDate()
       }));
+
+      //console.log("Eventos recibidos desde Firebase:", events);
       
       // Ordenar por fecha descendente
       events.sort((a, b) => {
@@ -88,9 +91,20 @@ export default function ArchivedEvents() {
     );
   };
 
-  const handleEventPress = (event) => {
+  const handleEdit = (event) => {
+    //console.log("Evento presionado para editar:", event);
     setSelectedEvent(event);
+
+    setShowEditModal(true);
+    //console.log("showEditModal puesto en true");
+  };
+
+  const handleEventPress = (event) => {
+    //console.log("Evento presionado:", event);
+    setSelectedEvent(event);
+
     setShowDetailModal(true);
+    //console.log("showDetailModal puesto en true");
   };
 
   const getTypeColor = (tipo) => {
@@ -105,11 +119,14 @@ export default function ArchivedEvents() {
 
   const renderArchivedEvent = ({ item }) => {
     const eventDate = item.evento_fecha_date;
-    const formattedDate = eventDate ? new Date(eventDate).toLocaleDateString('es-HN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    }) : 'Sin fecha';
+    
+    const formattedDate = eventDate
+      ? eventDate.toLocaleDateString('es-HN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        })
+      : 'Sin fecha';
 
     return (
       <TouchableOpacity 
@@ -203,7 +220,7 @@ export default function ArchivedEvents() {
       )}
 
       {/* Modal de detalles */}
-      <EventDetailModal
+      <EventDetailModal 
         visible={showDetailModal}
         evento={selectedEvent}
         onClose={() => setShowDetailModal(false)}
@@ -211,17 +228,17 @@ export default function ArchivedEvents() {
           setShowDetailModal(false);
           setShowEditModal(true);
         }}
-        onArchive={null} // No mostrar opción de archivar en eventos ya archivados
+        onArchive={null} 
         onDelete={() => handleDeleteEvent(selectedEvent?.id)}
       />
 
       {/* Modal de edición */}
       <EventEditModal
         visible={showEditModal}
-        evento={selectedEvent}
+        event={selectedEvent}
         onClose={() => setShowEditModal(false)}
-        onSave={() => {
-          setShowEditModal(false);
+        onSave={(updatedEvent) => {
+          handleEdit(selectedEvent?.id);
         }}
       />
     </View>
@@ -235,6 +252,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    marginTop: 60,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,

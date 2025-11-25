@@ -23,7 +23,7 @@ export const getUpcomingEvents = async (limit = 5) => {
 
     //console.log(`${eventos.length} eventos próximos encontrados`);
     
-    return eventos.slice(0, limit); // Limitar cantidad
+    return eventos.slice(0, limit);
   } catch (error) {
     console.error("Error al obtener eventos próximos:", error);
     return [];

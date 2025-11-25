@@ -1,6 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { addDoc, collection, getDocs, limit, orderBy, query } from "firebase/firestore";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+    collection,
+    deleteDoc,
+    doc,
+    getDocs,
+    query,
+    updateDoc
+} from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -17,42 +24,53 @@ import {
 import { db } from "../../../config/firebaseConfig";
 import colors from "../../../constants/colors";
 
-export default function AddProfesor() {
+export default function UpdateDocente() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const teacherId = params.teacherId;
+
+  const [docId, setDocId] = useState("");
   const [professorId, setProfessorId] = useState("");
   const [profFullName, setProfFullName] = useState("");
   const [profEmail, setProfEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [profRating, setProfRating] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingId, setLoadingId] = useState(true);
-
-  const router = useRouter();
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const q = query(
-          collection(db, "idDocentesCollection"), 
-          orderBy("docente_id", "desc"), 
-          limit(1)
-        );
-        const snapshot = await getDocs(q);
-        if (!snapshot.empty) {
-          const lastprofessor = snapshot.docs[0].data();
-          setProfessorId(parseInt(lastprofessor.docente_id) + 1);
-        } else {
-          setProfessorId(1);
-        }
+    loadProfessorData();
+  }, [teacherId]);
 
-      } catch (error) {
-        console.error("Error al obtener ID:", error);
-        setProfessorId(1);
-      } finally {
-        setLoadingId(false);
+  const loadProfessorData = async () => {
+    try {
+      const q = query(collection(db, "idDocentesCollection"));
+      const snapshot = await getDocs(q);
+      
+      const teacherDoc = snapshot.docs.find(
+        doc => doc.data().docente_id === teacherId
+      );
+
+      if (teacherDoc) {
+        const data = teacherDoc.data();
+        setDocId(teacherDoc.id); 
+        setProfessorId(data.docente_id);
+        setProfFullName(data.docente_fullName);
+        setProfEmail(data.email);
+        setPhoneNumber(data.phone_number);
+        setProfRating(data.rating);
+      } else {
+        Alert.alert("Error", "No se encontró el docente");
+        router.back();
       }
-    };
-    fetchData();
-  }, []);
+    } catch (error) {
+      console.error("Error al cargar docente:", error);
+      Alert.alert("Error", "No se pudieron cargar los datos del docente");
+      router.back();
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+$/;
@@ -65,11 +83,12 @@ export default function AddProfesor() {
   };
 
   const validateRating = (rating) => {
+    if (!rating) return true; 
     const num = parseFloat(rating);
     return !isNaN(num) && num >= 0 && num <= 5;
   };
 
-  const handleAddProfessor = async () => {
+  const handleUpdateProfessor = async () => {
     // Validaciones
     if (!profFullName.trim()) {
       Alert.alert("Campo Requerido", "Por favor ingresa el nombre completo del docente");
@@ -104,18 +123,18 @@ export default function AddProfesor() {
     setLoading(true);
 
     try {
-      await addDoc(collection(db, "idDocentesCollection"), {
-        docente_id: professorId,
+      const docRef = doc(db, "idDocentesCollection", docId);
+      
+      await updateDoc(docRef, {
         docente_fullName: profFullName.trim(),
-        docente_nota_personal: "N/A",
         email: profEmail.trim(),
         phone_number: phoneNumber.trim(),
         rating: profRating ? parseFloat(profRating) : 0
       });
 
       Alert.alert(
-        "✅ Éxito", 
-        "El docente fue agregado correctamente",
+        "✅ Actualizado", 
+        "Los datos del docente fueron actualizados correctamente",
         [
           {
             text: "OK",
@@ -123,29 +142,61 @@ export default function AddProfesor() {
           }
         ]
       );
-      
-      resetForm();
     } catch (error) {
-      console.error("❌ Error al guardar el profesor:", error);
-      Alert.alert("Error", "No se pudo guardar el docente. Intenta de nuevo.");
+      console.error("❌ Error al actualizar el docente:", error);
+      Alert.alert("Error", "No se pudo actualizar el docente. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setProfFullName("");
-    setProfEmail("");
-    setPhoneNumber("");
-    setProfRating("");
-    setProfessorId(professorId + 1);
+  const handleDeleteProfessor = () => {
+    Alert.alert(
+      "⚠️ Eliminar Docente",
+      `¿Estás seguro que deseas eliminar a ${profFullName}? Esta acción no se puede deshacer.`,
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: confirmDelete
+        }
+      ]
+    );
   };
 
-  if (loadingId) {
+  const confirmDelete = async () => {
+    setLoading(true);
+    try {
+      const docRef = doc(db, "idDocentesCollection", docId);
+      await deleteDoc(docRef);
+
+      Alert.alert(
+        "✅ Eliminado", 
+        "El docente fue eliminado correctamente",
+        [
+          {
+            text: "OK",
+            onPress: () => router.back()
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("❌ Error al eliminar docente:", error);
+      Alert.alert("Error", "No se pudo eliminar el docente. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loadingData) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.color_palette_1.lineArt_Purple} />
-        <Text style={styles.loadingText}>Cargando...</Text>
+        <Text style={styles.loadingText}>Cargando datos...</Text>
       </View>
     );
   }
@@ -173,9 +224,21 @@ export default function AddProfesor() {
           </TouchableOpacity>
 
           <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Agregar Docente</Text>
+            <Text style={styles.headerTitle}>Editar Docente</Text>
             <Text style={styles.headerSubtitle}>ID: {professorId}</Text>
           </View>
+
+          <TouchableOpacity 
+            onPress={handleDeleteProfessor}
+            style={styles.deleteButton}
+            disabled={loading}
+          >
+            <Ionicons 
+              name="trash-outline" 
+              size={24} 
+              color="#ff4444" 
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Form Card */}
@@ -244,7 +307,7 @@ export default function AddProfesor() {
               />
               <TextInput
                 style={styles.input}
-                placeholder="99887766"
+                placeholder="+50499887766"
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
                 keyboardType="phone-pad"
@@ -280,6 +343,18 @@ export default function AddProfesor() {
             </Text>
           </View>
 
+          {/* Info Card */}
+          <View style={styles.infoCard}>
+            <Ionicons 
+              name="information-circle" 
+              size={20} 
+              color={colors.color_palette_1.lineArt_Purple}
+            />
+            <Text style={styles.infoText}>
+              Los cambios se guardarán inmediatamente al presionar "Actualizar"
+            </Text>
+          </View>
+
           {/* Botones */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
@@ -292,19 +367,36 @@ export default function AddProfesor() {
 
             <TouchableOpacity
               style={[styles.button, styles.saveButton]}
-              onPress={handleAddProfessor}
+              onPress={handleUpdateProfessor}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                  <Text style={styles.saveButtonText}>Guardar</Text>
+                  <Ionicons name="save" size={20} color="#fff" />
+                  <Text style={styles.saveButtonText}>Actualizar</Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Danger Zone */}
+        <View style={styles.dangerZone}>
+          <Text style={styles.dangerZoneTitle}>Zona Peligrosa</Text>
+          <Text style={styles.dangerZoneDescription}>
+            Eliminar este docente es permanente y no se puede deshacer. 
+            Todas las referencias a este docente en las clases se mantendrán.
+          </Text>
+          <TouchableOpacity
+            style={styles.dangerButton}
+            onPress={handleDeleteProfessor}
+            disabled={loading}
+          >
+            <Ionicons name="trash" size={20} color="#fff" />
+            <Text style={styles.dangerButtonText}>Eliminar Docente</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -368,12 +460,26 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
   },
+  deleteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
 
   // Form Card
   formCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -453,6 +559,25 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
 
+  // Info Card
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0ff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.color_palette_1.lineArt_Purple + '30',
+    gap: 10,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#666',
+  },
+
   // Buttons
   buttonContainer: {
     flexDirection: 'row',
@@ -488,6 +613,47 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
+    fontFamily: 'poppins-semibold',
+    color: '#fff',
+  },
+
+  // Danger Zone
+  dangerZone: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#ff444420',
+    shadowColor: '#ff4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  dangerZoneTitle: {
+    fontSize: 18,
+    fontFamily: 'poppins-bold',
+    color: '#ff4444',
+    marginBottom: 8,
+  },
+  dangerZoneDescription: {
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 15,
+  },
+  dangerButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ff4444',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  dangerButtonText: {
+    fontSize: 15,
     fontFamily: 'poppins-semibold',
     color: '#fff',
   },

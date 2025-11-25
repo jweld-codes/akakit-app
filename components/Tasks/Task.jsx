@@ -613,7 +613,7 @@ const renderTaskCardGrid = ({ item }) => {
             data={filteredTasks}
             renderItem={viewMode === 'list' ? renderTaskCard : renderTaskCardGrid}
             keyExtractor={item => item.id}
-            key={viewMode} // Fuerza re-render al cambiar vista
+            key={viewMode}
             numColumns={viewMode === 'grid' ? 2 : 1}
             columnWrapperStyle={viewMode === 'grid' ? styles.gridRow : null}
             contentContainerStyle={styles.listContent}

@@ -1,30 +1,35 @@
 // components/Clases/ClassModal.jsx
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { addDoc, collection } from 'firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import UpdateClass from '../components/Clases/CRUD/UpdateClass';
-
 import TaskAccordion from '../components/Tasks/TaskAccordion';
+import { db } from '../config/firebaseConfig';
 import colors from '../constants/colors';
-
 import global from '../constants/global';
 import { useOverviewData } from '../context/OverviewDataContext';
 import { getClassById } from '../services/GetClassById';
 import { getDocenteById } from '../services/GetDocenteById';
 import { getPeriodById } from '../services/GetPeriodById';
+import { getRecursosByClassId } from '../services/GetRecursosByClassId';
 import { getTaskByClassId } from '../services/GetTareaByClassId';
 import { updateClassGrade } from '../services/UpdateClassGrade';
 
@@ -47,6 +52,7 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
   const [docenteToEdit, setDocenteToEdit] = useState(null);
   const [periodToEdit, setPeriodToEdit] = useState(null);
   //const [showAddTask, setShowAddTask] = useState(false);
+  const [recursosData, setRecursosData] = useState(null);
 
   const {tasksValueMetadata, refreshData: refreshOverviewData } = useOverviewData();
   const promedioClase = tasksValueMetadata.promedios_por_clase[classIdModal] ?? 0;
@@ -82,6 +88,11 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
         setTaskData(taskInfo || []);
       }
 
+      if (classInfo?.clase_id) {
+        const recursosInfo = await getRecursosByClassId(classInfo.clase_id);
+        setRecursosData(recursosInfo);
+      }
+
     } catch (error) {
       console.error('Error cargando datos del modal:', error);
     } finally {
@@ -90,10 +101,11 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
     }
   }, [visible, classIdModal]);
 
+  const handleRecursosUpdate = useCallback(async () => {
+    await fetchClassData(false);
+  }, [fetchClassData]);
 
   useEffect(() => {
-     //console.log('ClassModal recibió classIdModal:', classIdModal);
-    //console.log('Tipo de classIdModal:', typeof classIdModal);
     fetchClassData();
   }, [visible, classIdModal]);
   
@@ -229,8 +241,8 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
     : { color: '#rgba(4, 90, 8, 1)' };
 
     const backgroundImage = claseData 
-  ? getImageByClassType(claseData.class_type)
-  : require("../assets/images/classes_bg/card_background/Default.png");
+    ? getImageByClassType(claseData.class_type)
+    : require("../assets/images/classes_bg/card_background/Default.png");
 
    const renderTabContent = () => {
     if (!claseData) return null;
@@ -254,8 +266,8 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
 
       <TouchableOpacity
         onPress={() => {
-          onClose(); // cierra el modal
-          router.push("/QADir/Tareas/AddTaskScreen"); // navega a AddTask
+          onClose();
+          router.push("/QADir/Tareas/AddTaskScreen");
         }}  
         style={{
           backgroundColor: header,
@@ -274,8 +286,14 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
       );
       
       case 'recursos':
-        return <RecursosTab claseData={claseData} />;
-      
+      return (
+        <RecursosTab 
+          claseData={claseData} 
+          recursosData={recursosData} 
+          onRecursosUpdate={handleRecursosUpdate}
+        />
+      );
+
       default:
         return null;
     }
@@ -302,6 +320,7 @@ const ClassModal = ({ visible, classIdModal, onClose, onAddTask  }) => {
             }}
           />
         )}
+        
 
         <View style={[styles.modalContent, { backgroundColor: '#fff' }]}>
           {/* Header del Modal */}
@@ -725,18 +744,713 @@ const TareasTab = ({ claseData, color, taskData, onTaskUpdate }) => {
 };
 
 // Tab: Recursos
-const RecursosTab = ({ claseData }) => (
-  <View>
-    <Text style={styles.sectionTitle}>Recursos de la Clase</Text>
-    <View style={styles.emptyState}>
-      <Ionicons name="folder-outline" size={60} color="#ccc" />
-      <Text style={styles.emptyText}>No hay recursos disponibles</Text>
-      <Text style={styles.emptySubtext}>Los recursos de esta clase aparecerán aquí</Text>
+const RecursosTab = ({ claseData, recursosData, onRecursosUpdate }) => {
+  const [selectedCategory, setSelectedCategory] = useState('videos');
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  
+
+  // Separar recursos por tipo desde Firebase
+  const recursos = {
+    videos: recursosData?.filter(r => r.recurso_tipo === 'video') || [],
+    materiales: recursosData?.filter(r => ['pdf', 'docx', 'pptx', 'xlsx'].includes(r.recurso_tipo?.toLowerCase())) || [],
+    enlaces: recursosData?.filter(r => r.recurso_tipo === 'enlace') || [],
+    bibliografia: recursosData?.filter(r => r.recurso_tipo?.toLowerCase() === 'libro') || []
+  };
+
+  const categorias = [
+    { id: 'videos', label: 'Videos', icon: 'videocam-outline', count: recursos.videos.length },
+    { id: 'materiales', label: 'Materiales', icon: 'document-outline', count: recursos.materiales.length },
+    { id: 'enlaces', label: 'Enlaces', icon: 'link-outline', count: recursos.enlaces.length },
+    { id: 'bibliografia', label: 'Bibliografía', icon: 'library-outline', count: recursos.bibliografia.length },
+  ];
+
+  const handleOpenLink = async (url, titulo) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'No se puede abrir este enlace');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Hubo un problema al abrir el recurso');
+      console.error('Error abriendo URL:', error);
+    }
+  };
+
+  const renderContent = () => {
+    switch (selectedCategory) {
+      case 'videos':
+        return (
+          <View>
+            {recursos.videos.length === 0 ? (
+              <EmptyState 
+                icon="videocam-outline" 
+                message="No hay videos disponibles"
+                submessage="Las grabaciones de las clases aparecerán aquí"
+              />
+            ) : (
+              recursos.videos.map((video) => (
+                <TouchableOpacity
+                  key={video.recurso_id}
+                  style={styles.recursoCard}
+                  onPress={() => handleOpenLink(video.recurso_url, video.recurso_titulo)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.recursoIconContainer}>
+                    <Ionicons 
+                      name={video.recurso_visto === 'true' ? "checkmark-circle" : "play-circle-outline"} 
+                      size={32} 
+                      color={video.recurso_visto === 'true' ? '#27ae60' : colors.color_palette_1.lineArt_Purple} 
+                    />
+                  </View>
+                  <View style={styles.recursoInfo}>
+                    <Text style={styles.recursoTitulo}>{video.recurso_titulo}</Text>
+                    <View style={styles.recursoMetadata}>
+                      {video.recurso_fecha && (
+                        <View style={styles.metadataItem}>
+                          <Ionicons name="calendar-outline" size={14} color="#666" />
+                          <Text style={styles.metadataText}>
+                            {new Date(video.recurso_fecha.seconds * 1000).toLocaleDateString()}
+                          </Text>
+                        </View>
+                      )}
+                      {video.recurso_duracion && (
+                        <View style={styles.metadataItem}>
+                          <Ionicons name="time-outline" size={14} color="#666" />
+                          <Text style={styles.metadataText}>{video.recurso_duracion}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#ccc" />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        );
+
+      case 'materiales':
+        return (
+          <View>
+            {recursos.materiales.length === 0 ? (
+              <EmptyState 
+                icon="document-outline" 
+                message="No hay materiales disponibles"
+                submessage="Los materiales de estudio aparecerán aquí"
+              />
+            ) : (
+              recursos.materiales.map((material) => {
+                const getIconByType = (tipo) => {
+                  switch(tipo?.toLowerCase()) {
+                    case 'pdf': return 'document-text-outline';
+                    case 'docx': return 'document-outline';
+                    case 'pptx': return 'easel-outline';
+                    case 'xlsx': return 'grid-outline';
+                    default: return 'document-outline';
+                  }
+                };
+
+                return (
+                  <TouchableOpacity
+                    key={material.recurso_id}
+                    style={styles.recursoCard}
+                    onPress={() => handleOpenLink(material.recurso_url, material.recurso_titulo)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.recursoIconContainer, { backgroundColor: '#e3f2fd' }]}>
+                      <Ionicons 
+                        name={getIconByType(material.recurso_tipo)} 
+                        size={28} 
+                        color="#1976d2" 
+                      />
+                    </View>
+                    <View style={styles.recursoInfo}>
+                      <Text style={styles.recursoTitulo}>{material.recurso_titulo}</Text>
+                      {material.recurso_descripcion && (
+                        <Text style={styles.recursoDescripcion} numberOfLines={1}>
+                          {material.recurso_descripcion}
+                        </Text>
+                      )}
+                      <View style={styles.recursoMetadata}>
+                        <View style={styles.metadataItem}>
+                          <Text style={[styles.metadataText, { fontWeight: '600', textTransform: 'uppercase' }]}>
+                            {material.recurso_tipo}
+                          </Text>
+                        </View>
+                        {material.recurso_tamaño && (
+                          <View style={styles.metadataItem}>
+                            <Ionicons name="cloud-download-outline" size={14} color="#666" />
+                            <Text style={styles.metadataText}>{material.recurso_tamaño}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <Ionicons name="download-outline" size={22} color={colors.color_palette_1.lineArt_Purple} />
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+        );
+
+      case 'enlaces':
+        return (
+          <View>
+            {recursos.enlaces.length === 0 ? (
+              <EmptyState 
+                icon="link-outline" 
+                message="No hay enlaces disponibles"
+                submessage="Los enlaces útiles aparecerán aquí"
+              />
+            ) : (
+              recursos.enlaces.map((enlace) => (
+                <TouchableOpacity
+                  key={enlace.recurso_id}
+                  style={styles.recursoCard}
+                  onPress={() => handleOpenLink(enlace.recurso_url, enlace.recurso_titulo)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.recursoIconContainer, { backgroundColor: '#fff3e0' }]}>
+                    <Ionicons 
+                      name="link-outline" 
+                      size={28} 
+                      color="#f57c00" 
+                    />
+                  </View>
+                  <View style={styles.recursoInfo}>
+                    <Text style={styles.recursoTitulo}>{enlace.recurso_titulo}</Text>
+                    {enlace.recurso_descripcion && (
+                      <Text style={styles.recursoDescripcion} numberOfLines={2}>
+                        {enlace.recurso_descripcion}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="open-outline" size={22} color={colors.color_palette_1.lineArt_Purple} />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        );
+
+      case 'bibliografia':
+        return (
+          <View>
+            {recursos.bibliografia.length === 0 ? (
+              <EmptyState 
+                icon="library-outline" 
+                message="No hay bibliografía disponible"
+                submessage="La bibliografía del curso aparecerá aquí"
+              />
+            ) : (
+              recursos.bibliografia.map((libro) => (
+                <View key={libro.recurso_id} style={styles.biblioCard}>
+                  <View style={styles.biblioHeader}>
+                    <Ionicons name="book" size={24} color={colors.color_palette_1.lineArt_Purple} />
+                    <Text style={styles.biblioTitulo}>{libro.recurso_titulo}</Text>
+                  </View>
+                  <View style={styles.biblioInfo}>
+                    {libro.recurso_autor && <InfoRow label="Autor" value={libro.recurso_autor} />}
+                    {libro.recurso_editorial && <InfoRow label="Editorial" value={libro.recurso_editorial} />}
+                    {libro.recurso_anio && <InfoRow label="Año" value={libro.recurso_anio} />}
+                    {libro.recurso_edicion && <InfoRow label="Edición" value={libro.recurso_edicion} />}
+                    {libro.recurso_idioma && <InfoRow label="Idioma" value={libro.recurso_idioma} />}
+                    {libro.recurso_url_biblioteca && (
+                      <TouchableOpacity 
+                        style={styles.disponibleBadge}
+                        onPress={() => handleOpenLink(libro.recurso_url_biblioteca, 'Biblioteca')}
+                      >
+                        <Ionicons name="library" size={16} color="#27ae60" />
+                        <Text style={styles.disponibleText}>Ver en biblioteca →</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View style={styles.modalRecursocontainer}>
+      {/* Header con categorías */}
+      <View style={styles.modalRecursoheader}>
+        <View style={styles.modalRecursoheaderTop}>
+          <Text style={styles.sectionTitle}>Recursos de la Clase</Text>
+          <TouchableOpacity 
+            style={styles.modalRecursoaddButton}
+            onPress={() => setShowAddModal(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.modalRecursocategoriesScroll}
+        >
+          {categorias.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              style={[
+                styles.modalRecursocategoryButton,
+                selectedCategory === cat.id && styles.modalRecursocategoryButtonActive
+              ]}
+              onPress={() => setSelectedCategory(cat.id)}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={cat.icon} 
+                size={20} 
+                color={selectedCategory === cat.id ? '#fff' : '#666'} 
+              />
+              <Text style={[
+                styles.modalRecursocategoryLabel,
+                selectedCategory === cat.id && styles.modalRecursocategoryLabelActive
+              ]}>
+                {cat.label}
+              </Text>
+              {cat.count > 0 && (
+                <View style={[
+                  styles.modalRecursocategoryBadge,
+                  selectedCategory === cat.id && styles.modalRecursocategoryBadgeActive
+                ]}>
+                  <Text style={[
+                    styles.modalRecursocategoryBadgeText,
+                    selectedCategory === cat.id && styles.modalRecursocategoryBadgeTextActive
+                  ]}>
+                    {cat.count}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Contenido */}
+      <ScrollView style={styles.modalRecursocontent} showsVerticalScrollIndicator={false}>
+        {renderContent()}
+      </ScrollView>
+
+      {/* Modal para agregar recurso */}
+      <AddRecursoModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        classId={claseData?.clase_id}
+        onAdded={() => {
+          setShowAddModal(false);
+          if (onRecursosUpdate) onRecursosUpdate();
+        }}
+      />
     </View>
+  );
+};
+
+// Modal para agregar recursos
+const AddRecursoModal = ({ visible, onClose, classId, onAdded }) => {
+  const [tipoRecurso, setTipoRecurso] = useState('video');
+  const [loading, setLoading] = useState(false);
+
+  // Estados generales
+  const [titulo, setTitulo] = useState('');
+  const [url, setUrl] = useState('');
+  const [visto, setVisto] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+
+  // Estados específicos para videos
+  const [duracion, setDuracion] = useState('');
+
+  // Estados específicos para materiales
+  const [tamaño, setTamaño] = useState('');
+  const [numeroPaginas, setNumeroPaginas] = useState('');
+  const [categoria, setCategoria] = useState('presentacion');
+
+  // Estados específicos para bibliografía
+  const [autor, setAutor] = useState('');
+  const [editorial, setEditorial] = useState('');
+  const [anio, setAnio] = useState('');
+  const [edicion, setEdicion] = useState('');
+  const [idioma, setIdioma] = useState('Español');
+  const [urlBiblioteca, setUrlBiblioteca] = useState('');
+
+  const tiposRecurso = [
+    { id: 'video', label: 'Video', icon: 'videocam-outline' },
+    { id: 'pdf', label: 'PDF', icon: 'document-text-outline' },
+    { id: 'docx', label: 'Word', icon: 'document-outline' },
+    { id: 'pptx', label: 'PowerPoint', icon: 'easel-outline' },
+    { id: 'enlace', label: 'Enlace', icon: 'link-outline' },
+    { id: 'libro', label: 'Libro', icon: 'book-outline' },
+  ];
+
+  const resetForm = () => {
+    setTitulo('');
+    setUrl('');
+    setDescripcion('');
+    setDuracion('');
+    setTamaño('');
+    setNumeroPaginas('');
+    setCategoria('presentacion');
+    setAutor('');
+    setEditorial('');
+    setAnio('');
+    setEdicion('');
+    setIdioma('Español');
+    setUrlBiblioteca('');
+  };
+
+  const toggleSeenVideo = () => {
+    setVisto(visto === 'true' ? 'false' : 'true');
+  };
+
+  const handleSubmit = async () => {
+    if (!titulo || !url) {
+      Alert.alert('Error', 'El título y la URL son obligatorios');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const recursoData = {
+        recurso_clase_id: classId,
+        recurso_tipo: tipoRecurso,
+        recurso_titulo: titulo,
+        recurso_visto: visto,
+        recurso_autor: autor,
+        recurso_categoria: categoria,
+        recurso_anio: anio,
+        recurso_idioma: idioma,
+        recurso_url: url,
+        recurso_fecha: new Date(),
+        recurso_id: Date.now().toString()
+      };
+
+      if (tipoRecurso === 'video') {
+        recursoData.recurso_duracion = duracion || 'N/A';
+        recursoData.recurso_visto = 'false';
+      } else if (['pdf', 'docx', 'pptx', 'xlsx'].includes(tipoRecurso)) {
+        recursoData.recurso_descripcion = descripcion || '';
+        recursoData.recurso_tamaño = tamaño || 'N/A';
+        recursoData.recurso_numero_paginas = numeroPaginas || 'N/A';
+        recursoData.recurso_categoria = categoria;
+      } else if (tipoRecurso === 'enlace') {
+        recursoData.recurso_descripcion = descripcion || '';
+      } else if (tipoRecurso === 'libro') {
+        recursoData.recurso_autor = autor;
+        recursoData.recurso_editorial = editorial || '';
+        recursoData.recurso_anio = anio || '';
+        recursoData.recurso_edicion = edicion || '';
+        recursoData.recurso_idioma = idioma;
+        recursoData.recurso_url_biblioteca = urlBiblioteca || '';
+      }
+
+      await addDoc(collection(db, 'idRecursosCollection'), recursoData);
+      
+      Alert.alert('Éxito', 'Recurso agregado correctamente');
+      resetForm();
+      onAdded();
+    } catch (error) {
+      console.error('Error agregando recurso:', error);
+      Alert.alert('Error', 'No se pudo agregar el recurso');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderForm = () => {
+    if (tipoRecurso === 'video') {
+      return (
+        <View>
+          <InputField
+            label="Título del video *"
+            placeholder="Ej: Clase 1 - Introducción"
+            value={titulo}
+            onChangeText={setTitulo}
+          />
+          <InputField
+            label="URL de Google Drive *"
+            placeholder="https://drive.google.com/..."
+            value={url}
+            onChangeText={setUrl}
+          />
+          <InputField
+            label="Duración"
+            placeholder="1:30:00"
+            value={duracion}
+            onChangeText={setDuracion}
+          />
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Asistencia al evento</Text>
+            <TouchableOpacity
+              style={[
+              styles.checkboxContainer,
+              visto === 'true' && styles.checkboxContainerActive
+            ]}
+            onPress={toggleSeenVideo}
+            activeOpacity={0.7}
+          >
+            <View style={styles.checkboxRow}>
+              <View style={[
+                styles.checkboxIcon,
+                visto === 'true' && styles.checkboxIconActive
+              ]}>
+                <Ionicons 
+                  name={visto === 'true' ? 'checkmark' : 'close'} 
+                  size={20} 
+                  color={visto === 'true' ? '#fff' : '#999'} 
+                />
+              </View>
+              <View style={styles.checkboxTextContainer}>
+                <Text style={[
+                  styles.checkboxTitle,
+                  visto === 'true' && styles.checkboxTitleActive
+                ]}>
+                  {visto === 'true' ? 'Video ya visto' : 'Sin ver video'}
+                </Text>
+                <Text style={styles.checkboxSubtitle}>
+                  {visto === 'true' 
+                    ? 'Has confirmado vista del video' 
+                    : 'Marca si vistes el video'
+                  }
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+          </View>
+        </View>
+      );
+    } else if (['pdf', 'docx', 'pptx', 'xlsx'].includes(tipoRecurso)) {
+      return (
+        <View>
+          <InputField
+            label="Título del documento *"
+            placeholder="Ej: Presentación Tema 1"
+            value={titulo}
+            onChangeText={setTitulo}
+          />
+          <InputField
+            label="Descripción"
+            placeholder="Breve descripción"
+            value={descripcion}
+            onChangeText={setDescripcion}
+            multiline
+          />
+          <InputField
+            label="URL de Google Drive *"
+            placeholder="https://drive.google.com/..."
+            value={url}
+            onChangeText={setUrl}
+          />
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <InputField
+                label="Tamaño"
+                placeholder="2.5 MB"
+                value={tamaño}
+                onChangeText={setTamaño}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <InputField
+                label="Páginas"
+                placeholder="45"
+                value={numeroPaginas}
+                onChangeText={setNumeroPaginas}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+        </View>
+      );
+    } else if (tipoRecurso === 'enlace') {
+      return (
+        <View>
+          <InputField
+            label="Título del enlace *"
+            placeholder="Ej: Plataforma del curso"
+            value={titulo}
+            onChangeText={setTitulo}
+          />
+          <InputField
+            label="Descripción"
+            placeholder="Descripción del enlace"
+            value={descripcion}
+            onChangeText={setDescripcion}
+            multiline
+          />
+          <InputField
+            label="URL *"
+            placeholder="https://..."
+            value={url}
+            onChangeText={setUrl}
+          />
+        </View>
+      );
+    } else if (tipoRecurso === 'libro') {
+      return (
+        <View>
+          <InputField
+            label="Título del libro *"
+            placeholder="Ej: Fundamentos de Programación"
+            value={titulo}
+            onChangeText={setTitulo}
+          />
+          <InputField
+            label="Autor *"
+            placeholder="Nombre del autor"
+            value={autor}
+            onChangeText={setAutor}
+          />
+          <InputField
+            label="Editorial"
+            placeholder="Editorial del libro"
+            value={editorial}
+            onChangeText={setEditorial}
+          />
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 10 }}>
+              <InputField
+                label="Año"
+                placeholder="2024"
+                value={anio}
+                onChangeText={setAnio}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <InputField
+                label="Edición"
+                placeholder="5ta Ed."
+                value={edicion}
+                onChangeText={setEdicion}
+              />
+            </View>
+          </View>
+          <InputField
+            label="URL de biblioteca"
+            placeholder="https://biblioteca..."
+            value={urlBiblioteca}
+            onChangeText={setUrlBiblioteca}
+          />
+          <InputField
+            label="Link alternativo"
+            placeholder="https://..."
+            value={url}
+            onChangeText={setUrl}
+          />
+        </View>
+      );
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalRecursoOverlay}
+      >
+        <View style={styles.modalRecursoContent}>
+          <View style={styles.modalRecursoHeader}>
+            <Text style={styles.modalRecursoTitle}>Agregar Recurso</Text>
+            <TouchableOpacity onPress={onClose} disabled={loading}>
+              <Ionicons name="close" size={28} color="#333" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tiposScroll}
+          >
+            {tiposRecurso.map((tipo) => (
+              <TouchableOpacity
+                key={tipo.id}
+                style={[
+                  styles.tipoButton,
+                  tipoRecurso === tipo.id && styles.tipoButtonActive
+                ]}
+                onPress={() => setTipoRecurso(tipo.id)}
+                disabled={loading}
+              >
+                <Ionicons
+                  name={tipo.icon}
+                  size={20}
+                  color={tipoRecurso === tipo.id ? '#fff' : '#666'}
+                />
+                <Text style={[
+                  styles.tipoLabel,
+                  tipoRecurso === tipo.id && styles.tipoLabelActive
+                ]}>
+                  {tipo.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+            {renderForm()}
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={onClose}
+              disabled={loading}
+            >
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, styles.submitButton, loading && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Agregar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+};
+
+const InputField = ({ label, ...props }) => (
+  <View style={styles.inputContainer}>
+    <Text style={styles.inputLabel}>{label}</Text>
+    <TextInput
+      style={[styles.input, props.multiline && styles.inputMultiline]}
+      placeholderTextColor="#999"
+      {...props}
+    />
   </View>
 );
 
-// Componente auxiliar para las filas de información
+const EmptyState = ({ icon, message, submessage }) => (
+  <View style={styles.emptyState}>
+    <Ionicons name={icon} size={60} color="#ccc" />
+    <Text style={styles.emptyText}>{message}</Text>
+    <Text style={styles.emptySubtext}>{submessage}</Text>
+  </View>
+);
+
 const InfoRow = ({ label, value }) => (
   <View style={styles.infoRow}>
     <Text style={styles.infoLabel}>{label}:</Text>
@@ -756,6 +1470,7 @@ const styles = StyleSheet.create({
     height: '100%',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    backgroundColor: 'rgba(243, 243, 243, 1)',
     overflow: 'hidden',
     elevation: 5,
   },
@@ -1006,55 +1721,420 @@ const styles = StyleSheet.create({
   emptyState: {
   alignItems: 'center',
   marginTop: 40,
-},
-emptyText: {
-  fontSize: 18,
-  fontFamily: 'poppins-semibold',
-  color: '#777',
-  marginTop: 10,
-},
-emptySubtext: {
-  fontSize: 14,
-  fontFamily: 'poppins-regular',
-  color: '#aaa',
-  textAlign: 'center',
-},
-tareaRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  paddingVertical: 10,
-  borderBottomWidth: 1,
-  borderBottomColor: '#eee',
-},
-tareaTitulo: {
-  fontSize: 16,
-  fontFamily: 'poppins-medium',
-  color: '#333',
-},
-swipeButton: {
-  justifyContent: 'center',
-  alignItems: 'center',
-  width: 60,
-  height: '100%',
-},
+  },
+  emptyText: {
+    fontSize: 18,
+    fontFamily: 'poppins-semibold',
+    color: '#777',
+    marginTop: 10,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    fontFamily: 'poppins-regular',
+    color: '#aaa',
+    textAlign: 'center',
+  },
+  tareaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tareaTitulo: {
+    fontSize: 16,
+    fontFamily: 'poppins-medium',
+    color: '#333',
+  },
+  swipeButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 60,
+    height: '100%',
+  },
 
-fab: {
-  position: 'absolute',
-  bottom: 30, 
-  right: 25,
-  borderRadius: 50,
-  width: 60,
-  height: 60,
-  alignItems: 'center',
-  justifyContent: 'center',
-  elevation: 4,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 3 },
-  shadowOpacity: 0.3,
-  shadowRadius: 4,
-},
+  fab: {
+    position: 'absolute',
+    bottom: 30, 
+    right: 25,
+    borderRadius: 50,
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
 
+// Recursos
+  modalRecursocontainer: {
+    flex: 1,
+  },
+  modalRecursoheader: {
+    marginBottom: 20,
+  },
+  modalRecursoheaderTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  modalRecursosectionTitle: {
+    fontSize: 18,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+  },
+  modalRecursoaddButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  modalRecursocategoriesScroll: {
+    marginBottom: 10,
+  },
+  modalRecursocategoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginRight: 10,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    gap: 6,
+  },
+  modalRecursocategoryButtonActive: {
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+  },
+  modalRecursocategoryLabel: {
+    fontSize: 14,
+    fontFamily: 'poppins-medium',
+    color: '#666',
+  },
+  modalRecursocategoryLabelActive: {
+    color: '#fff',
+  },
+  modalRecursocategoryBadge: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  modalRecursocategoryBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  modalRecursocategoryBadgeText: {
+    fontSize: 12,
+    fontFamily: 'poppins-semibold',
+    color: colors.color_palette_1.lineArt_Purple,
+  },
+  modalRecursocategoryBadgeTextActive: {
+    color: '#fff',
+  },
+  modalRecursocontent: {
+    flex: 1,
+  },
+
+  recursoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  recursoIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: colors.color_palette_1.lineArt_Purple + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+
+  recursoInfo: {
+    flex: 1,
+  },
+
+  recursoTitulo: {
+    fontSize: 15,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+    marginBottom: 4,
+  },
+
+  recursoDescripcion: {
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#666',
+    marginBottom: 4,
+  },
+
+  recursoMetadata: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  metadataItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metadataText: {
+    fontSize: 12,
+    fontFamily: 'poppins-regular',
+    color: '#666',
+  },
+
+  biblioCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  biblioHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+
+  biblioTitulo: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+  },
+
+  biblioInfo: {
+    gap: 8,
+  },
+
+
+  disponibleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  disponibleText: {
+    fontSize: 13,
+    fontFamily: 'poppins-medium',
+    color: '#27ae60',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontFamily: 'poppins-semibold',
+    color: '#666',
+    marginTop: 15,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    fontFamily: 'poppins-regular',
+    color: '#999',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  
+  //Modal Agregar recurso
+
+  modalRecursoOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalRecursoContent: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+    maxHeight: '100%',
+  },
+  modalRecursoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 30,
+    marginBottom: 10,
+  },
+  modalRecursoTitle: {
+    fontSize: 24,
+    fontFamily: 'poppins-bold',
+    color: '#333',
+  },
+
+  tiposScroll: {
+    marginBottom: 10,
+  },
+  tipoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height:50,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginRight: 10,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    gap: 6,
+  },
+  tipoButtonActive: {
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+  },
+  tipoLabel: {
+    fontSize: 14,
+    fontFamily: 'poppins-medium',
+    color: '#666',
+  },
+  tipoLabelActive: {
+    color: '#fff',
+  },
+  formContainer: {
+    marginBottom:20
+  },
+
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontFamily: 'poppins-semibold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    fontFamily: 'poppins-regular',
+    color: '#333',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  inputMultiline: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  row: {
+    flexDirection: 'row',
+  },
+  footer: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  cancelButtonText: {
+    fontSize: 15,
+    fontFamily: 'poppins-semibold',
+    color: '#666',
+  },
+  submitButton: {
+    backgroundColor: colors.color_palette_1.lineArt_Purple,
+  },
+  submitButtonText: {
+    fontSize: 15,
+    fontFamily: 'poppins-semibold',
+    color: '#fff',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+
+  // Checkbox
+  checkboxContainer: {
+    backgroundColor: '#fafafa',
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 16,
+  },
+  checkboxContainerActive: {
+    backgroundColor: '#f8f4f8',
+    borderColor: '#782170',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  checkboxIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxIconActive: {
+    backgroundColor: '#782170',
+  },
+  checkboxTextContainer: {
+    flex: 1,
+  },
+  checkboxTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 4,
+  },
+  checkboxTitleActive: {
+    color: '#782170',
+  },
+  checkboxSubtitle: {
+    fontSize: 13,
+    color: '#666',
+  },
+
+  
 });
 
 export default ClassModal;

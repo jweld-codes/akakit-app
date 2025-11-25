@@ -17,7 +17,11 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import ClearCacheModal from '../../components/Settings/ClearCacheModal';
 import colors from '../../constants/colors';
+import TeacherSearchModal from '../../modals/TeacherSearchModal';
+//import { deleteAllDocuments } from "../../services/DeleteCollections";
+import TeacherDetailModal from "../../components/Docentes/Docente";
 
 export default function Ajustes() {
   const router = useRouter();
@@ -30,6 +34,9 @@ export default function Ajustes() {
   const [pushNotifications, setPushNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+
+  const [showClearCacheModal, setShowClearCacheModal] = useState(false);
+  const [showTeacherSearch, setShowTeacherSearch] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -48,6 +55,14 @@ export default function Ajustes() {
         }
       ]
     );
+  };
+
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+
+  const handleViewTeacher = (teacher) => {
+    setSelectedTeacher(teacher);
+    setShowDetailModal(true);
   };
 
   const handleDeleteAccount = () => {
@@ -102,13 +117,22 @@ export default function Ajustes() {
   };
 
   const openWhatsApp = () => {
-    const phone = "+50433606023"; // ← Coloca el número real
+    const phone = "+50494391050";
     const url = `https://wa.me/${phone}`;
 
     Linking.openURL(url);
   };
 
-
+  const collections = [
+  "idClaseCollection",
+  "idCursoCollection",
+  "idDocentesCollection",
+  "idEventosCollection",
+  "idFlujogramaClases",
+  "idPeriodoCollection",
+  "idRecursosCollection",
+  "idTareasCollection",
+  ];
 
   return (
     <View style={styles.container}>
@@ -252,6 +276,33 @@ export default function Ajustes() {
           />
         </View>*/}
 
+        {/* Componentes */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Gestiones Excluyentes</Text>
+          
+          <SettingItem
+            icon="stats-chart-outline"
+            title="Configuración de Estadisticás"
+            subtitle="Gestionar las estadísticas"
+            onPress={() => router.push("/QADir/Stats/StatisticsScreen")}
+          />
+
+          <SettingItem
+            icon="person-outline"
+            title="Configuración de Docentes"
+            subtitle="Gestionar datos de los docentes"
+            onPress={() => setShowTeacherSearch(true)}
+          />
+
+          <SettingItem
+            icon="calendar-outline"
+            title="Configuración de Periodos"
+            subtitle="Gestionar periodos y años cursantes"
+            onPress={() => router.push("/QADir/Curso/AddPeriodoScreen")}
+          />
+
+        </View>
+
         {/* Datos y Almacenamiento */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Datos</Text>
@@ -274,20 +325,8 @@ export default function Ajustes() {
           <SettingItem
             icon="trash-outline"
             title="Limpiar Caché"
-            subtitle="Liberar espacio"
-            onPress={() => {
-              Alert.alert(
-                'Limpiar Caché',
-                '¿Deseas eliminar los datos temporales?',
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  { 
-                    text: 'Limpiar', 
-                    onPress: () => console.log('Limpiando caché...') 
-                  }
-                ]
-              );
-            }}
+            subtitle="Liberar espacio eliminando colecciones"
+            onPress={() => setShowClearCacheModal(true)}
           />
           
           <SettingItem
@@ -297,6 +336,7 @@ export default function Ajustes() {
             onPress={() => {/* TODO: Exportar datos */}}
           />
         </View>
+
 
         {/* Soporte */}
         <View style={styles.section}>
@@ -375,6 +415,22 @@ export default function Ajustes() {
           <Text style={styles.footerText}>© 2025 Todos los derechos reservados</Text>
         </View>
       </ScrollView>
+
+      <ClearCacheModal
+        visible={showClearCacheModal}
+        onClose={() => setShowClearCacheModal(false)}
+      />
+
+      <TeacherSearchModal
+        visible={showTeacherSearch}
+        onClose={() => setShowTeacherSearch(false)}
+        mode="manage"
+      />
+      <TeacherDetailModal
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        teacher={selectedTeacher}
+      />
     </View>
   );
 }

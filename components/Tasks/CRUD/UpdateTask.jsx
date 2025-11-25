@@ -155,7 +155,7 @@ export default function UpdateTask({ visible, task, onClose, onUpdated }) {
       tarea_comentario: tareaComentario
     });
 
-    Alert.alert('✅ Tarea actualizada');
+    Alert.alert('Tarea actualizada');
     onUpdated?.();
     onClose?.();
   } catch (error) {
